@@ -1,0 +1,59 @@
+/* src/styles.css - LE CODE FINAL */
+
+:root {
+  --cgpt-sidebar-bg:       #202123;
+  --cgpt-toolbar-bg:       linear-gradient(to bottom, #30353fff, #404e68ff);
+  --cgpt-accent:           #10a37f;
+  --cgpt-chat-bg:          #f7f7f8;
+  --cgpt-bubble-user:      #10a37f;
+  --cgpt-bubble-bot:       #ffffff;
+  --cgpt-text-primary:     #e5e5e5;
+  --cgpt-text-secondary:   #ffffff;
+
+  /* chat / fond des écrans */
+  --cgpt-chat-bg-start:    #404e68ff;
+  --cgpt-chat-bg-end:      rgb(148, 158, 177);
+
+  /* accents (boutons, focus) */
+  --cgpt-accent-end:       #505d81;
+}
+
+
+.mat-sidenav {
+  background-color: var(--cgpt-sidebar-bg) !important;
+  color: var(--cgpt-text-primary) !important;
+}
+
+/* === Structure globale === */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  font-family: 'Segoe UI', sans-serif;
+
+  /* ✅ LA CORRECTION DÉFINITIVE : On force le fond sombre sur toute la page */
+  background: linear-gradient(160deg, var(--cgpt-chat-bg-start), var(--cgpt-chat-bg-end));
+}
+
+/* Cacher toutes les scrollbar visuellement */
+body::-webkit-scrollbar { display: none; }
+* { scrollbar-width: none; -ms-overflow-style: none; }
+*::-webkit-scrollbar { width:0!important; height:0!important; display:none!important; }
+
+/*
+  Le conteneur est maintenant transparent par défaut,
+  donc cette règle n'est plus nécessaire mais ne fait pas de mal.
+*/
+mat-sidenav-container {
+  background-color: transparent !important;
+}
+
+/*
+  On s'assure que le contenu du chat ne déborde pas
+  et ne crée pas de barres de défilement sur le conteneur.
+*/
+mat-sidenav-content {
+  overflow: hidden !important;
+  height: 100%;
+}

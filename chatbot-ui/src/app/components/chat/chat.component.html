@@ -1,0 +1,29 @@
+<div class="chat-wrapper">
+  <div class="messages" #chatContainer>
+    <div
+      *ngFor="let msg of messages"
+      class="message-container"
+      [ngClass]="{'user': msg.role === 'user', 'bot': msg.role === 'bot'}"
+    >
+      <div class="bubble">
+        {{ msg.content }}
+        <div style="font-size: 0.7em; opacity: 0.5; margin-top: 4px;" *ngIf="msg.timestamp">
+          {{ msg.timestamp | date:'shortTime' }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <form class="input-bar" (ngSubmit)="sendMessage()">
+    <input
+      [(ngModel)]="newMessage"
+      name="message"
+      placeholder="Écrire un message…"
+      required
+      autocomplete="off"
+    />
+    <button mat-icon-button type="submit">
+      <mat-icon>send</mat-icon>
+    </button>
+  </form>
+</div>

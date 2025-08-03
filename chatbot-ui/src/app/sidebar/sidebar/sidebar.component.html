@@ -1,0 +1,50 @@
+<!-- CHEMIN : src/app/sidebar/sidebar/sidebar.component.html -->
+
+<nav class="sidebar">
+
+  <div class="top-controls">
+    <!-- ✅ CORRECTION : On a supprimé "mat-flat-button" pour éviter les conflits de style -->
+    <button class="top-btn new-conv" (click)="newConversation()">
+      <mat-icon>add</mat-icon>
+      <span *ngIf="isExpanded">Nouvelle conv.</span>
+    </button>
+
+    <!-- On garde "mat-stroked-button" ici car notre style s'y adapte bien -->
+    <button mat-stroked-button class="top-btn delete-all" (click)="deleteAllConversations()">
+      <mat-icon>delete_sweep</mat-icon>
+      <span *ngIf="isExpanded">Tout supprimer</span>
+    </button>
+  </div>
+
+  <mat-divider></mat-divider>
+  
+  <h2 class="section-title" *ngIf="isExpanded">Chats</h2>
+
+  <ul class="conv-list">
+    <li *ngFor="let conv of conversations"
+        class="conv-item"
+        [class.active]="conv.id === currentConversationId"
+        (click)="selectConversation(conv.id)">
+        
+      <mat-icon>{{ conv.id === currentConversationId ? 'forum' : 'chat_bubble' }}</mat-icon>
+      
+      <span *ngIf="isExpanded">{{ conv.title }}</span>
+      
+      <button mat-icon-button
+              class="delete-btn"
+              *ngIf="isExpanded"
+              matTooltip="Supprimer"
+              (click)="deleteConversation(conv.id); $event.stopPropagation()">
+        <mat-icon>delete_outline</mat-icon>
+      </button>
+    </li>
+  </ul>
+
+  <div class="bottom-group">
+    <!-- ✅ CORRECTION : On a aussi supprimé "mat-flat-button" ici pour la cohérence -->
+    <button class="settings-btn" (click)="onSettings()" matTooltip="Paramètres">
+      <mat-icon>settings</mat-icon>
+      <span *ngIf="isExpanded">Paramètres</span>
+    </button>
+  </div>
+</nav>

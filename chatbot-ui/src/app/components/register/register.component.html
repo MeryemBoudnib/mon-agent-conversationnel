@@ -1,0 +1,57 @@
+<div class="auth-container">
+  <div class="auth-card">
+    <h1>Créer un compte</h1>
+    <form (ngSubmit)="register()">
+      <div class="form-group">
+        <label for="firstName">Prénom</label>
+        <input
+          id="firstName"
+          type="text"
+          [(ngModel)]="firstName"
+          name="firstName"
+          placeholder="Votre prénom"
+          required
+        />
+      </div>
+      <div class="form-group">
+        <label for="lastName">Nom</label>
+        <input
+          id="lastName"
+          type="text"
+          [(ngModel)]="lastName"
+          name="lastName"
+          placeholder="Votre nom"
+          required
+        />
+      </div>
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input
+          id="email"
+          type="email"
+          [(ngModel)]="email"
+          name="email"
+          placeholder="votre.email@exemple.com"
+          required
+        />
+      </div>
+      <div class="form-group">
+        <label for="password">Mot de passe</label>
+        <input
+          id="password"
+          type="password"
+          [(ngModel)]="password"
+          name="password"
+          placeholder="••••••••"
+          required
+        />
+      </div>
+      <button type="submit">S’inscrire</button>
+    </form>
+  <p class="switch-auth">
+  Déjà un compte ? <a routerLink="/login">Se connecter</a>
+</p>
+
+
+  </div>
+</div>

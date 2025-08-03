@@ -1,0 +1,101 @@
+/* auth.component.css */
+
+/* ─── Conteneur plein écran ─── */
+.auth-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;             
+  margin: 0;                 
+  padding: 1rem;
+  background: linear-gradient(
+    to bottom,
+    var(--cgpt-chat-bg-start),
+    var(--cgpt-chat-bg-end)
+  );
+  box-sizing: border-box;
+}
+
+/* ─── Carte centrale ─── */
+.auth-card {
+  background: #d1d5db;       
+  backdrop-filter: blur(10px);
+  border-radius: 0.75rem;    
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  padding: 2rem;
+  max-width: 440px;          /* largeur réduite de la carte */
+  width: 100%;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+/* Titre “Connexion” / “Créer un compte” */
+.auth-card h1 {
+  margin-bottom: 1.5rem;
+  font-size: 1.75rem;
+  text-align: center;
+  color: #30353f;            
+}
+
+/* ─── Champs de formulaire ─── */
+.form-group {
+  margin-bottom: 1rem;
+}
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: #555;
+}
+.form-group input {
+  display: block;            /* pour centrer avec margin auto */
+  width: 100%;                /* 80% de la carte */
+  max-width: 420px;          /* ne dépasse jamais 300px */
+  margin: 0 auto;            /* centre horizontalement */
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 0.5rem;
+  background: #fff;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+.form-group input:focus {
+  outline: none;
+  border-color: var(--cgpt-accent-start);
+}
+
+/* ─── Bouton principal ─── */
+button {
+  display: block;
+  width: 100%;
+  padding: 0.75rem;
+  margin-top: 0.5rem;
+  background: #3b4a6e;
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+}
+
+/* ─── Lien “Pas de compte ? / S’inscrire” ─── */
+.switch-auth {
+  margin-top: 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: #666666;            
+}
+.switch-auth a {
+  color: var(--cgpt-accent-start);
+  text-decoration: none;
+  font-weight: 600;
+  cursor: pointer;
+}
+.switch-auth a:hover {
+  text-decoration: underline;
+}

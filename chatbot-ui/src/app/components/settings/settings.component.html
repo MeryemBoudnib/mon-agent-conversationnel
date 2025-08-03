@@ -1,0 +1,77 @@
+
+<div class="settings-wrapper">
+  <div class="settings-container">
+    <div class="settings-header">
+      <div class="header-content">
+        <mat-icon class="settings-icon">settings</mat-icon>
+        <h1 class="settings-title">Paramètres</h1>
+      </div>
+      <p class="settings-subtitle">Gérez vos informations personnelles et votre sécurité</p>
+    </div>
+
+    <div class="settings-content">
+      <mat-card class="settings-section">
+        <div class="section-header">
+          <mat-icon class="section-icon">person</mat-icon>
+          <h2>Informations personnelles</h2>
+        </div>
+        
+        <div class="form-grid">
+          <mat-form-field appearance="outline">
+            <mat-label for="firstName">Prénom</mat-label>
+            <input matInput id="firstName" [(ngModel)]="firstName" aria-label="Prénom" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label for="lastName">Nom</mat-label>
+            <input matInput id="lastName" [(ngModel)]="lastName" aria-label="Nom" />
+          </mat-form-field>
+          
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label for="email">Email (non modifiable)</mat-label>
+            <input matInput id="email" [(ngModel)]="email" readonly aria-label="Email" />
+            <mat-icon matSuffix>email</mat-icon>
+          </mat-form-field>
+        </div>
+      </mat-card>
+
+      <mat-card class="settings-section">
+        <div class="section-header">
+          <mat-icon class="section-icon">security</mat-icon>
+          <h2>Sécurité</h2>
+        </div>
+        
+        <div class="form-grid">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label for="oldPassword">Ancien mot de passe</mat-label>
+            <input matInput id="oldPassword" type="password" [(ngModel)]="oldPassword" required aria-label="Ancien mot de passe" />
+            <mat-icon matSuffix>lock</mat-icon>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label for="newPassword">Nouveau mot de passe</mat-label>
+            <input matInput id="newPassword" type="password" [(ngModel)]="newPassword" aria-label="Nouveau mot de passe" />
+            <mat-icon matSuffix>lock_open</mat-icon>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label for="confirmPassword">Confirmation</mat-label>
+            <input matInput id="confirmPassword" type="password" [(ngModel)]="confirmPassword" aria-label="Confirmation du nouveau mot de passe" />
+            <mat-icon matSuffix>verified_user</mat-icon>
+          </mat-form-field>
+        </div>
+      </mat-card>
+
+      <div class="actions-container">
+        <button mat-stroked-button class="action-btn cancel-btn">
+          <mat-icon>close</mat-icon>
+          Annuler
+        </button>
+        <button mat-flat-button class="action-btn save-btn" (click)="saveSettings()">
+          <mat-icon>save</mat-icon>
+          Enregistrer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

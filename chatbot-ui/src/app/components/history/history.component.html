@@ -1,0 +1,19 @@
+<div class="history-container">
+  <h2>Historique des conversations</h2>
+  <button mat-stroked-button color="warn" (click)="deleteAllConversations(  )">
+    <mat-icon>delete_sweep</mat-icon>
+    Supprimer tout
+  </button>
+
+  <ul class="history-list">
+    <li *ngFor="let conv of conversations" class="history-item">
+      <div class="history-info" (click)="viewConversation(conv.id)">
+        <span class="history-title">{{ conv.title }}</span>
+        <span class="history-date">{{ conv.date | date:'short' }}</span>
+      </div>
+      <button mat-icon-button color="warn" (click)="delete(conv.id); $event.stopPropagation()">
+        <mat-icon>delete</mat-icon>
+      </button>
+    </li>
+  </ul>
+</div>
