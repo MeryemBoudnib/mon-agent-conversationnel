@@ -1,21 +1,22 @@
 import { Component } from '@angular/core';
+import { Router, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { FormsModule }  from '@angular/forms';
-import { HttpClientModule, HttpClient } from '@angular/common/http';
-import { RouterModule, Router } from '@angular/router';   // ← importer RouterModule
-
+import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { HttpClientModule } from '@angular/common/http';
+import { AuthService } from '../../auth/auth.service';  // ✅ chemin vers le service
+
 @Component({
   selector: 'app-login',
   standalone: true,
   imports: [
     CommonModule,
     FormsModule,
-    HttpClientModule,
-    RouterModule  ,
-    MatIconModule,    
-    MatButtonModule  // ← ici !
+    RouterModule,
+    MatIconModule,
+    MatButtonModule,
+    HttpClientModule
   ],
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.css']
@@ -23,29 +24,27 @@ import { MatButtonModule } from '@angular/material/button';
 export class LoginComponent {
   email = '';
   password = '';
+  loading = false;
 
-  constructor(
-    private http: HttpClient,
-    private router: Router             // ← router injecté
-  ) {}
+  constructor(private auth: AuthService, private router: Router) {}
 
-  login() {
-    const payload = { email: this.email, password: this.password };
+  // src/app/components/login/login.component.ts (extrait)
+login() {
+  if (!this.email || !this.password || this.loading) return;
+  this.loading = true;
 
-    this.http.post<{ token: string }>(
-        'http://localhost:8080/api/auth/login',
-        payload
-      )
-      .subscribe({
-        next: resp => {
-          localStorage.setItem('access_token', resp.token);
-          console.log('Token stocké :', resp.token);
-          // 👉 décommenter / adapter la ligne suivante pour rediriger
-          this.router.navigate(['/chat']);
-        },
-        error: () => {
-          alert('Échec de la connexion, vérifiez vos identifiants');
-        }
-      });
-  }
+  this.auth.login(this.email, this.password).subscribe({
+    next: () => {
+      this.loading = false;
+      const target = this.auth.isAdmin() ? '/admin' : '/chat';
+      // ✅ on quitte /login directement, pas de nav vers '/' ni vers la même URL
+      this.router.navigateByUrl(target, { replaceUrl: true });
+    },
+    error: () => {
+      this.loading = false;
+      alert('Échec de la connexion');
+    }
+  });
 }
+
+  }

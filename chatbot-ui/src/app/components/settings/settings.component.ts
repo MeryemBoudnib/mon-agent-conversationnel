@@ -1,66 +1,80 @@
-// CHEMIN : src/app/components/settings/settings.component.ts (VERSION FINALE CORRIGÉE)
-
-import { Component, OnInit, ViewEncapsulation } from '@angular/core';
+// src/app/components/settings/settings.component.ts
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from "@angular/material/card";
-import { MatIconModule } from "@angular/material/icon";
-
-interface User {
-  firstName: string;
-  lastName: string;
-  email: string;
-}
+import { HttpClient } from '@angular/common/http';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
   imports: [
-    CommonModule, FormsModule, HttpClientModule, MatFormFieldModule,
-    MatInputModule, MatButtonModule, MatCardModule, MatIconModule
+    CommonModule,
+    FormsModule,
+    MatIconModule,
+    MatButtonModule,
+    MatCardModule,
+    MatFormFieldModule,
+    MatInputModule
   ],
   templateUrl: './settings.component.html',
   styleUrls: ['./settings.component.css'],
-  encapsulation: ViewEncapsulation.None
 })
 export class SettingsComponent implements OnInit {
   firstName = '';
   lastName = '';
+  email = '';
   oldPassword = '';
   newPassword = '';
   confirmPassword = '';
-  email = '';
+
+  saving = false;
+  message: { type: 'success' | 'error', text: string } | null = null;
 
   constructor(private http: HttpClient) {}
 
   ngOnInit(): void {
-    this.http.get<User>('http://localhost:8080/api/user/me').subscribe(user => {
-      this.firstName = user.firstName || '';
-      this.lastName = user.lastName || '';
-      this.email = user.email || '';
+    this.http.get<any>('http://localhost:8080/api/user/me').subscribe({
+      next: u => {
+        this.firstName = u.firstName ?? '';
+        this.lastName = u.lastName ?? '';
+        this.email = u.email ?? '';
+      },
+      error: e => console.error(e)
     });
   }
 
   saveSettings(): void {
-    if (this.newPassword !== this.confirmPassword) {
-      alert('❌ Les nouveaux mots de passe ne correspondent pas.');
-      return;
+    this.message = null;
+    const wantsPw = !!(this.oldPassword || this.newPassword || this.confirmPassword);
+    if (wantsPw) {
+      if (!this.oldPassword || !this.newPassword) {
+        this.message = { type: 'error', text: 'Renseigne ancien et nouveau mot de passe.' };
+        return;
+      }
+      if (this.newPassword !== this.confirmPassword) {
+        this.message = { type: 'error', text: 'La confirmation ne correspond pas.' };
+        return;
+      }
     }
+    const dto: any = { firstName: this.firstName, lastName: this.lastName };
+    if (wantsPw) { dto.oldPassword = this.oldPassword; dto.newPassword = this.newPassword; }
 
-    const payload = {
-      firstName: this.firstName,
-      lastName: this.lastName,
-      oldPassword: this.oldPassword,
-      newPassword: this.newPassword
-    };
-
-    this.http.post('http://localhost:8080/api/user/settings', payload).subscribe({
-      next: () => alert('✅ Paramètres sauvegardés avec succès.'),
-      error: (err: any) => alert(`❌ Erreur lors de la sauvegarde. ${err.error?.message || 'Vérifiez votre ancien mot de passe.'}`)
+    this.saving = true;
+    this.http.post('http://localhost:8080/api/user/settings', dto).subscribe({
+      next: () => {
+        this.message = { type: 'success', text: 'Paramètres enregistrés.' };
+        this.oldPassword = this.newPassword = this.confirmPassword = '';
+      },
+      error: (err) => {
+        const msg = typeof err?.error === 'string' && err.error ? err.error : 'Échec enregistrement (400).';
+        this.message = { type: 'error', text: msg };
+      },
+      complete: () => this.saving = false
     });
   }
 }

@@ -1,22 +1,156 @@
-<mat-card>
-  <h2>Tableau de Bord Admin</h2>
-  <p>Utilisateurs inscrits : {{ stats.users }}</p>
-  <p>Conversations actives : {{ stats.activeConversations }}</p>
+<div class="dashboard" [ngClass]="theme">
+  <!-- Header + Theme toggle -->
+  <div class="header">
+    <h2>Admin Dashboard</h2>
+    <button mat-button (click)="toggleTheme()">
+      <mat-icon>{{ theme === 'dark' ? 'brightness_5' : 'dark_mode' }}</mat-icon>
+      {{ theme === 'dark' ? 'Light' : 'Dark' }}
+    </button>
+  </div>
 
-  <h3>Liste des utilisateurs</h3>
-  <table mat-table [dataSource]="users" class="mat-elevation-z8" style="width: 100%;">
-    <ng-container matColumnDef="email">
-      <th mat-header-cell *matHeaderCellDef>Email</th>
-      <td mat-cell *matCellDef="let user">{{ user.email }}</td>
+  <!-- KPI cards -->
+  <div class="kpis">
+    <mat-card class="kpi">
+      <div class="kpi-title">Utilisateurs</div>
+      <div class="kpi-value">{{ stats.users }}</div>
+    </mat-card>
+
+    <mat-card class="kpi">
+      <div class="kpi-title">Conversations actives</div>
+      <div class="kpi-value">{{ stats.activeConversations }}</div>
+    </mat-card>
+
+    <mat-card class="kpi">
+      <div class="kpi-title">Durée moy. conv (min)</div>
+      <div class="kpi-value">{{ stats.avgConvMin | number:'1.0-1' }}</div>
+    </mat-card>
+  </div>
+
+  <!-- Date range -->
+  <mat-card class="range-card">
+    <div class="range-row">
+      <label>
+        Du :
+        <input type="date" [(ngModel)]="fromISO" />
+      </label>
+      <label>
+        Au :
+        <input type="date" [(ngModel)]="toISO" />
+      </label>
+      <button
+        type="button"
+        mat-raised-button
+        color="primary"
+        (click)="applyRange()"
+      >
+        Appliquer
+      </button>
+    </div>
+  </mat-card>
+
+  <!-- Inscriptions par jour (area chart) -->
+  <mat-card class="section">
+    <div class="section-title">Inscriptions par jour</div>
+    <apx-chart
+      [series]="signupsSeries"
+      [chart]="signupsChart"
+      [xaxis]="signupsXAxis"
+      [stroke]="signupsStroke"
+      [fill]="signupsFill"
+      [dataLabels]="signupsLabels"
+    ></apx-chart>
+  </mat-card>
+
+  <!-- Messages par jour -->
+  <mat-card class="section">
+    <div class="section-title">Messages par jour</div>
+    <div class="bars">
+      <div
+        class="bar"
+        *ngFor="let p of msgsPerDay"
+        [style.height.%]="(p.msgs / maxPerDay) * 100"
+        [attr.title]="p.d + ' : ' + p.msgs"
+      >
+        <span class="bar-label">{{ p.d }}</span>
+        <span class="bar-value">{{ p.msgs }}</span>
+      </div>
+    </div>
+  </mat-card>
+
+  <!-- Heatmap -->
+  <mat-card class="section">
+    <div class="section-title">Heatmap (jours x heures)</div>
+    <div class="heatmap">
+      <div class="heat-row" *ngFor="let row of heat; let i = index">
+        <div class="heat-day">{{ weekDayName(i) }}</div>
+
+        <div
+          class="heat-cell"
+          *ngFor="let val of row; let h = index"
+          [style.opacity]="maxHeat ? (val / maxHeat) : 0"
+          [attr.title]="weekDayName(i) + ' ' + h + 'h: ' + val"
+        ></div>
+      </div>
+    </div>
+  </mat-card>
+
+  <!-- Top keywords -->
+  <mat-card class="section">
+    <div class="section-title">
+      Top keywords
+      <span *ngIf="!keywordsEnabled" class="muted"> (désactivé – endpoint indisponible)</span>
+    </div>
+
+    <ng-container *ngIf="keywordsEnabled && keywords.length > 0; else noKeywords">
+      <table class="table">
+        <thead><tr><th>Mot</th><th>Count</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let k of keywords">
+            <td>{{ k.word }}</td>
+            <td>{{ k.count }}</td>
+          </tr>
+        </tbody>
+      </table>
     </ng-container>
+    <ng-template #noKeywords>
+      <div class="muted">Aucun mot-clé pour la période.</div>
+    </ng-template>
+  </mat-card>
 
-    <ng-container matColumnDef="action">
-      <th mat-header-cell *matHeaderCellDef>Action</th>
-      <td mat-cell *matCellDef="let user">
-        <button mat-button color="warn" (click)="disableUser(user.id)">Désactiver</button>
-      </td>
-    </ng-container>
+  <!-- Users -->
+  <mat-card class="section">
+    <div class="section-title">Utilisateurs</div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Email</th>
+          <th>Rôle</th>
+          <th style="width: 1%; white-space: nowrap;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let u of users">
+          <td>{{ u.id }}</td>
+          <td>{{ u.email }}</td>
+          <td>{{ u.role }}</td>
+          <td>
+            <button mat-stroked-button color="primary" (click)="setRole(u.id, 'ADMIN')" *ngIf="u.role === 'USER'">
+              <mat-icon>arrow_upward</mat-icon>
+              Promouvoir ADMIN
+            </button>
 
-    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-    <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
-  </table>
+            <button mat-stroked-button color="warn" (click)="setRole(u.id, 'USER')" *ngIf="u.role === 'ADMIN'">
+              <mat-icon>arrow_downward</mat-icon>
+              Rétrograder USER
+            </button>
+
+            <button mat-stroked-button color="warn" (click)="disableUser(u.id)" *ngIf="false">
+              <mat-icon>block</mat-icon> Désactiver
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </mat-card>
+</div>

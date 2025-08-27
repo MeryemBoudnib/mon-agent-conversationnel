@@ -2,32 +2,32 @@ package com.chat_orchestrator.chat_orchestrator.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
+import java.util.Locale;
 import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class ChatService {
-
     private final McpClient mcpClient;
-    // Le WebClient.Builder n'est plus nécessaire si on simplifie
 
-    /**
-     * CORRECTION : Cette méthode est la source de vos réponses incorrectes.
-     * Le service externe 'extract_instruction' ne comprend pas votre question
-     * et renvoie une action par défaut.
-     * Nous allons la simplifier pour qu'elle appelle directement l'agent de conversation générale.
-     */
-    public String askAI(String message) {
-        // Envoie directement la question à l'agent de conversation générale.
-        // C'est plus simple et plus fiable que d'essayer d'extraire une instruction.
-        return mcpClient.sendMcpInstruction("general_conversation", Map.of("message", message));
+    private String routeIntent(String message){
+        String m = message.toLowerCase(Locale.ROOT);
+        if (m.contains("pdf") || m.contains("doc") || m.contains("section") || m.contains("dans mes documents"))
+            return "docqa";
+        // Exemple: if (m.contains("stat") || m.contains("tendance")) return "analytics";
+        return "chat";
     }
 
-    /**
-     * Cette méthode est correcte et fait la même chose que la version corrigée de askAI.
-     * On peut garder les deux pour la compatibilité, mais elles sont maintenant identiques.
-     */
+    public String askAI(String message) {
+        return handleMessage(message);
+    }
+
     public String handleMessage(String message) {
-        return mcpClient.sendMcpInstruction("general_conversation", Map.of("message", message));
+        String intent = routeIntent(message);
+        return switch (intent) {
+            case "docqa" -> mcpClient.sendMcpInstruction("docqa_search", Map.of("q", message, "k", 3));
+            default      -> mcpClient.sendMcpInstruction("general_conversation", Map.of("message", message));
+        };
     }
 }

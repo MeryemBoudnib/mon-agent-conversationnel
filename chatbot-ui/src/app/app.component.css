@@ -1,92 +1,51 @@
-/* CHEMIN : src/app/app.component.css */
-
-/*
-  :host est le conteneur racine de tout votre composant.
-  On le transforme en colonne flex pour empiler la toolbar et le contenu.
-*/
-:host {
-  display: flex;
-  flex-direction: column;
-  height: 100vh; /* Prend 100% de la hauteur de la vue */
+:host{
+  display:flex;
+  flex-direction:column;
+  height:100vh;          /* plein écran */
 }
 
-.main-content > router-outlet ~ * {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
+/* Toolbar */
+.app-toolbar{
+  background:var(--cgpt-toolbar-bg);
+  flex-shrink:0;
+  box-shadow:0 2px 4px rgba(0,0,0,.2);
+  z-index:2;
+}
+.toolbar-title{ margin-left:8px; font-size:1.25rem; font-weight:500; }
+.spacer{ flex:1; }
+
+/* Conteneur sidenav */
+.app-container{
+  flex:1 1 auto;         /* 🔑 occupe tout l’espace restant */
+  overflow:hidden;
 }
 
-/*
-  La barre d'outils. On ne la fixe plus, on la laisse
-  être le premier élément de notre colonne flex.
-*/
-.app-toolbar {
-  background: var(--cgpt-toolbar-bg);
-  flex-shrink: 0; /* Empêche la toolbar de rétrécir */
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  z-index: 2; /* S'assure qu'elle est au-dessus du contenu */
+/* Zone de contenu centrale */
+.app-content{
+  display:flex;
+  flex-direction:column;
+  min-height:0;          /* 🔑 autorise les enfants à scroller/occuper la hauteur */
 }
 
-.toolbar-title {
-  margin-left: 8px;
-  font-size: 1.25rem;
-  font-weight: 500;
+/* Wrapper autour du router-outlet */
+.main{
+  flex:1 1 auto;         /* 🔑 pousse jusqu’en bas */
+  min-height:0;          /* 🔑 indispensable pour que le Chat scrolle */
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
 }
 
-.spacer {
-  flex: 1; /* Pousse le bouton de déconnexion tout à droite */
+/* Bouton déconnexion */
+.custom-logout-btn{
+  background:linear-gradient(to right,#a19dda48,#1e1b2bff);
+  color:#fff; border:1px solid #b9a6a6ff; border-radius:20px;
+  padding:6px 16px; font-weight:500; display:flex; align-items:center; gap:8px;
+  cursor:pointer; transition:background .3s ease;
 }
+.custom-logout-btn:hover{ background:linear-gradient(to right,#0a0a0aff,#3b2c60); }
+.logout-icon{ color:#e41212ee; }
 
-/*
-  Le conteneur de la sidebar et du contenu.
-  C'est l'élément qui doit grandir pour remplir l'espace restant.
-*/
-.app-container {
-  flex: 1; /* ✅ LA CORRECTION LA PLUS IMPORTANTE : grandit pour remplir l'espace vertical */
-  overflow: hidden; /* Empêche les barres de défilement inutiles */
-}
-
-/*
-  Le contenu principal où s'affiche le chat.
-  On le transforme en colonne flex pour bien gérer le <router-outlet>.
-*/
-.app-content {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-/*
-  On s'assure que le composant chargé dans <router-outlet> (votre page de chat)
-  s'étire pour remplir tout l'espace de .app-content.
-*/
-.app-content ::ng-deep > * {
-  display: flex;
-  flex-direction: column;
-  /* ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ */
-  /* LA CORRECTION : La ligne fautive a été supprimée ici. */
-  /* ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ */
-}
-
-/* Styles pour votre bouton de déconnexion personnalisé */
-.custom-logout-btn {
-  background: linear-gradient(to right, #a19dda48, #1e1b2bff);
-  color: #fff;
-  border: 1px solid #b9a6a6ff;
-  border-radius: 20px;
-  padding: 6px 16px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  transition: background 0.3s ease;
-}
-
-.custom-logout-btn:hover {
-  background: linear-gradient(to right, #0a0a0aff, #3b2c60);
-}
-
-.logout-icon {
-  color: #e41212ee;
-}
+/* ❌ Supprime ces anciennes règles si tu les as encore */
+.main-content > router-outlet ~ * { }     /* à retirer */
+.app-content ::ng-deep > * { }            /* à retirer */

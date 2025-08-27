@@ -1,29 +1,27 @@
-<!-- CHEMIN : src/app/app.component.html -->
-
-<ng-container *ngIf="!isLoginRoute(); else authOnly">
+<ng-container *ngIf="isShellRoute(); else routeOnly">
   <mat-toolbar class="app-toolbar" color="primary">
-    <button mat-icon-button (click)="toggleSidebar()">
-      <mat-icon>menu</mat-icon>
-    </button>
+    <button mat-icon-button (click)="toggleSidebar()"><mat-icon>menu</mat-icon></button>
     <span class="toolbar-title">Mon Agent Conversationnel</span>
     <span class="spacer"></span>
     <button class="custom-logout-btn" (click)="logout()">
-      <mat-icon class="logout-icon">logout</mat-icon>
-      Déconnexion
+      <mat-icon class="logout-icon">logout</mat-icon> Déconnexion
     </button>
   </mat-toolbar>
 
   <mat-sidenav-container class="app-container">
-    <!-- ✅ CORRECTION : On définit la largeur directement ici. -->
     <mat-sidenav #sidenav mode="side" opened [style.width.px]="260">
       <app-sidebar></app-sidebar>
     </mat-sidenav>
+
     <mat-sidenav-content class="app-content">
-      <router-outlet></router-outlet>
+      <div class="main">
+        <router-outlet></router-outlet>
+      </div>
     </mat-sidenav-content>
   </mat-sidenav-container>
 </ng-container>
 
-<ng-template #authOnly>
+<ng-template #routeOnly>
+  <!-- /login, /register, /admin sans shell -->
   <router-outlet></router-outlet>
 </ng-template>

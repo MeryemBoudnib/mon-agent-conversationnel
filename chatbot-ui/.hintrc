@@ -10,6 +10,12 @@
   ],
   "hints": {
     "no-inline-styles": "off",
-    "compat-api/css": "off"
+    "compat-api/css": "off",
+    "axe/forms": [
+      "default",
+      {
+        "label": "off"
+      }
+    ]
   }
 }

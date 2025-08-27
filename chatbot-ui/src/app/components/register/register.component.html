@@ -1,57 +1,80 @@
 <div class="auth-container">
   <div class="auth-card">
-    <h1>Créer un compte</h1>
-    <form (ngSubmit)="register()">
-      <div class="form-group">
-        <label for="firstName">Prénom</label>
-        <input
-          id="firstName"
-          type="text"
-          [(ngModel)]="firstName"
-          name="firstName"
-          placeholder="Votre prénom"
-          required
-        />
+    <div class="brand">
+      <span class="material-icons">person_add</span>
+      <h1>Créer un compte</h1>
+      <p class="subtitle">Rejoignez la plateforme</p>
+    </div>
+
+    <form (ngSubmit)="register()" #regForm="ngForm" novalidate>
+      <div class="grid-2">
+        <div class="form-field">
+          <label for="firstName">Prénom</label>
+          <div class="input">
+            <span class="material-icons">badge</span>
+            <input
+              id="firstName"
+              name="firstName"
+              [(ngModel)]="firstName"
+              required
+              placeholder="Votre prénom" />
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label for="lastName">Nom</label>
+          <div class="input">
+            <span class="material-icons">badge</span>
+            <input
+              id="lastName"
+              name="lastName"
+              [(ngModel)]="lastName"
+              required
+              placeholder="Votre nom" />
+          </div>
+        </div>
       </div>
-      <div class="form-group">
-        <label for="lastName">Nom</label>
-        <input
-          id="lastName"
-          type="text"
-          [(ngModel)]="lastName"
-          name="lastName"
-          placeholder="Votre nom"
-          required
-        />
-      </div>
-      <div class="form-group">
+
+      <div class="form-field">
         <label for="email">Email</label>
-        <input
-          id="email"
-          type="email"
-          [(ngModel)]="email"
-          name="email"
-          placeholder="votre.email@exemple.com"
-          required
-        />
+        <div class="input">
+          <span class="material-icons">mail</span>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            [(ngModel)]="email"
+            required
+            autocomplete="email"
+            placeholder="vous@exemple.com" />
+        </div>
       </div>
-      <div class="form-group">
+
+      <div class="form-field">
         <label for="password">Mot de passe</label>
-        <input
-          id="password"
-          type="password"
-          [(ngModel)]="password"
-          name="password"
-          placeholder="••••••••"
-          required
-        />
+        <div class="input">
+          <span class="material-icons">lock</span>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            [(ngModel)]="password"
+            required
+            minlength="6"
+            autocomplete="new-password"
+            placeholder="Créez un mot de passe" />
+        </div>
       </div>
-      <button type="submit">S’inscrire</button>
+
+      <button class="btn primary" type="submit" [disabled]="regForm.invalid">
+        <span class="material-icons">how_to_reg</span>
+        S’inscrire
+      </button>
+
+      <div class="alt-action">
+        Déjà inscrit ?
+        <a routerLink="/login">Se connecter</a>
+      </div>
     </form>
-  <p class="switch-auth">
-  Déjà un compte ? <a routerLink="/login">Se connecter</a>
-</p>
-
-
   </div>
 </div>

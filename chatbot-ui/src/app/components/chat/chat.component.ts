@@ -1,18 +1,18 @@
 // CHEMIN : src/app/components/chat/chat.component.ts
 import {
-  Component, OnInit, AfterViewChecked,
-  ViewChild, ElementRef
+  Component, OnInit, AfterViewChecked, ViewChild, ElementRef
 } from '@angular/core';
 
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClientModule } from '@angular/common/http';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
+
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-import { MarkdownModule } from 'ngx-markdown'; // <-- 1. Importez MarkdownModule
+import { MarkdownModule } from 'ngx-markdown';
 
 import { ChatService, Message } from '../../services/chat.service';
+import { AuthService } from '../../auth/auth.service';
 
 @Component({
   selector: 'app-chat',
@@ -20,11 +20,10 @@ import { ChatService, Message } from '../../services/chat.service';
   imports: [
     CommonModule,
     FormsModule,
-    HttpClientModule,
     RouterModule,
     MatIconModule,
     MatButtonModule,
-    MarkdownModule // <-- 2. Ajoutez-le aux imports
+    MarkdownModule
   ],
   templateUrl: './chat.component.html',
   styleUrls: ['./chat.component.css']
@@ -39,11 +38,14 @@ export class ChatComponent implements OnInit, AfterViewChecked {
   constructor(
     private chatService: ChatService,
     private route: ActivatedRoute,
-    private router: Router
+    private router: Router,
+    private auth: AuthService
   ) {}
 
   ngOnInit(): void {
     this.route.params.subscribe(params => {
+      if (!this.auth.isLoggedIn()) return; // pas loggé → stop
+
       const idParam = params['id'];
       this.messages = [];
       this.newMessage = '';
@@ -58,23 +60,25 @@ export class ChatComponent implements OnInit, AfterViewChecked {
     });
   }
 
-  ngAfterViewChecked(): void { this.scrollToBottom(); }
+  ngAfterViewChecked(): void {
+    this.scrollToBottom();
+  }
 
   private loadMessages(id: number): void {
-    this.chatService.getConversationMessages(id)
-      .subscribe(msgs => {
-        this.messages = msgs
-          .filter(m => m.content && m.content.trim().length > 0)
-          .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-      });
+    this.chatService.getConversationMessages(id).subscribe(msgs => {
+      this.messages = (msgs || [])
+        .filter(m => m.content && m.content.trim().length > 0)
+        .sort((a, b) => {
+          const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+          const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+          return timeA - timeB;
+        });
+    });
   }
 
   private startNewConversation(): void {
-    this.chatService.createConversation({
-      title: 'Nouvelle conversation',
-      userMessage: '',
-      botReply: 'Bienvenue ! Que puis-je faire pour vous ?'
-    }).subscribe(conv => {
+    // 👉 Appel sans argument (createConversation() ne prend rien)
+    this.chatService.createConversation().subscribe(conv => {
       this.currentConversationId = conv.id;
       this.chatService.notifyHistoryUpdate();
       this.router.navigate(['/chat', conv.id]);
@@ -96,10 +100,8 @@ export class ChatComponent implements OnInit, AfterViewChecked {
     this.newMessage = '';
 
     this.chatService.saveMessage(this.currentConversationId, 'user', text).subscribe(() => {
-      if (isFirstUserMessage) {
-        this.chatService.notifyHistoryUpdate();
-      }
-      
+      if (isFirstUserMessage) this.chatService.notifyHistoryUpdate();
+
       const triggerKeywords = [
         'combien de conversations', 'nombre de conversations', 'combien de messages',
         'dernier message', 'date de la dernière conversation', 'quelle est la version',
@@ -114,12 +116,7 @@ export class ChatComponent implements OnInit, AfterViewChecked {
 
       response$.subscribe(res => {
         const content = res?.reply?.trim();
-        if (!content) {
-          const fallback = "❌ Je n’ai pas pu trouver de réponse à cette question.";
-          this.pushBotMessage(fallback);
-          return;
-        }
-        this.pushBotMessage(content);
+        this.pushBotMessage(content || '❌ Je n’ai pas pu trouver de réponse à cette question.');
       });
     });
   }
@@ -132,15 +129,14 @@ export class ChatComponent implements OnInit, AfterViewChecked {
     };
     this.messages.push(botMsg);
 
-    this.chatService.saveMessage(this.currentConversationId!, 'bot', content).subscribe({
-      next: () => console.log("✅ Réponse du bot enregistrée"),
-      error: err => console.error("❌ Erreur enregistrement bot :", err)
-    });
+    this.chatService.saveMessage(this.currentConversationId!, 'bot', content)
+      .subscribe({ next: () => {}, error: err => console.error(err) });
   }
 
   private scrollToBottom(): void {
     try {
-      this.chatContainer.nativeElement.scrollTop = this.chatContainer.nativeElement.scrollHeight;
-    } catch (err) {}
+      this.chatContainer.nativeElement.scrollTop =
+        this.chatContainer.nativeElement.scrollHeight;
+    } catch {}
   }
 }
