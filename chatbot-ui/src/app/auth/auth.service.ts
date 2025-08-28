@@ -16,27 +16,42 @@ export class AuthService {
   private baseUrl = 'http://localhost:8080/api/auth';
   private storageKey = 'access_token';
 
-  // cache optionnel (réhydraté au démarrage)
+  // caches optionnels
   private _role: UserRole | null = null;
+  private _email: string | null = null;
 
   constructor(private http: HttpClient) {
     const t = localStorage.getItem(this.storageKey);
     if (t) {
       this._role = extractRole(t);
-      console.debug('[AuthService] boot role =', this._role);
+      this._email = this.decodeEmailFromJwt(t);
+      console.debug('[AuthService] boot role =', this._role, 'email =', this._email);
     }
   }
 
-  /** Toujours lire la source de vérité: le storage */
+  /** Source de vérité = localStorage */
   get token(): string | null {
     return localStorage.getItem(this.storageKey);
   }
 
-  /** Renvoie le rôle calculé à partir du token (et met le cache à jour) */
+  /** Rôle dérivé du token */
   get role(): UserRole | null {
     const t = this.token;
     this._role = t ? extractRole(t) : null;
     return this._role;
+  }
+
+  /** 🔹 Email de l'utilisateur connecté (depuis JWT si possible) */
+  getEmail(): string | null {
+    if (this._email) return this._email;
+    const t = this.token;
+    this._email = t ? this.decodeEmailFromJwt(t) : null;
+    return this._email;
+  }
+
+  /** 🔹 Namespace DocQA = email ou 'guest' */
+  getNamespace(): string {
+    return this.getEmail() || 'guest';
   }
 
   isLoggedIn(): boolean {
@@ -54,7 +69,8 @@ export class AuthService {
         if (!token) throw new Error('No token in /login response');
         localStorage.setItem(this.storageKey, token);
         this._role = extractRole(token);
-        console.debug('[AuthService.login] role =', this._role);
+        this._email = this.decodeEmailFromJwt(token);
+        console.debug('[AuthService.login] role =', this._role, 'email =', this._email);
         return { token, role: this._role };
       })
     );
@@ -69,6 +85,7 @@ export class AuthService {
           localStorage.setItem(this.storageKey, token); // auto-login (optionnel)
           role = extractRole(token);
           this._role = role;
+          this._email = this.decodeEmailFromJwt(token);
         }
         return { token, role };
       })
@@ -78,5 +95,17 @@ export class AuthService {
   logout(): void {
     localStorage.removeItem(this.storageKey);
     this._role = null;
+    this._email = null;
+  }
+
+  /** Décodage simple de l'email depuis le payload JWT (adapter les clés si besoin) */
+  private decodeEmailFromJwt(token: string): string | null {
+    try {
+      const payload = JSON.parse(atob((token || '').split('.')[1] || ''));
+      // adapte ces clés à ton backend
+      return payload.email || payload.sub || payload.username || null;
+    } catch {
+      return null;
+    }
   }
 }

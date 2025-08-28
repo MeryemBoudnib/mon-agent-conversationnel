@@ -1,4 +1,3 @@
-// src/main/java/com/chat_orchestrator/chat_orchestrator/controller/AdminController.java
 package com.chat_orchestrator.chat_orchestrator.controller;
 
 import com.chat_orchestrator.chat_orchestrator.dto.*;
@@ -6,10 +5,11 @@ import com.chat_orchestrator.chat_orchestrator.entity.Role;
 import com.chat_orchestrator.chat_orchestrator.service.AdminService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -40,12 +40,28 @@ public class AdminController {
         return ResponseEntity.ok().build();
     }
 
-    // Compat : si l’ancien front appelle encore /disable/{id}
-    @PostMapping("/disable/{id}")
-    public ResponseEntity<Void> disableCompat(@PathVariable Long id) {
-        adminService.setRole(id, Role.USER);
+    @PostMapping("/users/{id}/reset-password")
+    public ResponseEntity<Void> resetPassword(@PathVariable Long id) {
+        adminService.resetPassword(id);
         return ResponseEntity.ok().build();
     }
+
+    @PostMapping("/users/{id}/ban")
+    public ResponseEntity<Void> banUser(@PathVariable Long id,
+                                        @RequestBody BanRequest req) {
+        if (req == null || req.until() == null)
+            return ResponseEntity.badRequest().build();
+        adminService.banUser(id, req.until());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/users/{id}/unban")
+    public ResponseEntity<Void> unbanUser(@PathVariable Long id) {
+        adminService.unbanUser(id);
+        return ResponseEntity.ok().build();
+    }
+
+    public record BanRequest(@DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate until) {}
 
     // ------- CONVERSATIONS -------
     @GetMapping("/conversations")
@@ -67,16 +83,25 @@ public class AdminController {
         return ResponseEntity.noContent().build();
     }
 
-    // ------- SIGNUPS PER DAY -------
+    @GetMapping("/conversations/export")
+    public ResponseEntity<byte[]> exportConversations(@RequestParam Long userId) {
+        String csv = adminService.exportConversationsCsv(userId);
+        byte[] bytes = csv.getBytes(StandardCharsets.UTF_8);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.TEXT_PLAIN);
+        headers.set(HttpHeaders.CONTENT_DISPOSITION,
+                "attachment; filename=\"conversations_user_" + userId + ".csv\"");
+        return new ResponseEntity<>(bytes, headers, HttpStatus.OK);
+    }
+
+    // ------- DASHBOARD / SIGNUPS -------
     @GetMapping("/signups-per-day")
     public ResponseEntity<List<UserSignupDTO>> signupsPerDay(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
-    ) {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return ResponseEntity.ok(adminService.signupsPerDay(from, to));
     }
 
-    // ------- DASHBOARD -------
     @GetMapping("/dashboard")
     public ResponseEntity<DashboardDTO> dashboard(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,

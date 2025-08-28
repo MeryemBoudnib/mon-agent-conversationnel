@@ -1,0 +1,14 @@
+<div class="chatbar">
+  <button class="icon" mat-mini-fab color="primary" [disabled]="uploading"
+          (click)="triggerFile(fileInput)" title="Joindre PDF/TXT/CSV">
+    <mat-icon>add</mat-icon>
+  </button>
+  <input #fileInput type="file" accept=".pdf,.txt,.csv" hidden (change)="onFilePicked($event)">
+
+  <input class="input" type="text" placeholder="Écrire un message…" [(ngModel)]="text" (keyup.enter)="onSend()" />
+
+  <button class="send" mat-fab color="primary" (click)="onSend()">
+    <mat-icon>send</mat-icon>
+  </button>
+</div>
+<div class="hint" *ngIf="uploading">Import du document…</div>

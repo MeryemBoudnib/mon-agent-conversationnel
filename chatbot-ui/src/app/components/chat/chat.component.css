@@ -1,107 +1,170 @@
-/* CHEMIN : src/app/components/chat/chat.component.css */
+:host { display: block; height: 100%; }
 
-:host {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
+.chat-root {
   height: 100%;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  background: #1f2630;
+  color: #e6edf3;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
 }
 
-.chat-wrapper {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  background: #0f172a; /* Fond de la barre de saisie */
-  color: #e2e8f0;
-  font-family: 'Segoe UI', sans-serif;
-  overflow: hidden;
-}
-
-/* C'EST CETTE RÈGLE QUI EST IMPORTANTE */
+/* -------- Messages -------- */
 .messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  /* C'est le bon arrière-plan qui doit être appliqué */
-  background: linear-gradient(to bottom, #c5c9d3ff, #1e293b);
+  padding: 16px 14px 0 14px;
+  overflow: auto;
+  scroll-behavior: smooth;
 }
 
-.messages::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-}
+.bubble { display:flex; width:100%; }
 
-.message-container {
-  display: flex;
-}
-.message-container.user {
+
+.bubble.me {
   justify-content: flex-end;
 }
-.message-container.bot {
-  justify-content: flex-start;
+
+.bubble-inner {
+  background: #0f1720;
+  border: 1px solid #2a3441;
+  border-radius: 14px;
+  padding: 12px 14px;
+  box-shadow: 0 2px 10px rgba(0,0,0,.25);
 }
 
-.bubble {
-  max-width: 75%;
-  padding: 14px 20px;
-  border-radius: 20px;
-  font-size: 1rem;
-  line-height: 1.4;
-  word-wrap: break-word;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+.bubble.me .bubble-inner {
+  background: #0b5cff;
+  color: #ffffff;
+  border-color: #0b5cff;
 }
 
-.user .bubble {
-  background: linear-gradient(to right, #523e8fff, #72a2b9ff);
-  color: white;
-  border-radius: 20px 20px 4px 20px;
+.bubble-text {
+  white-space: pre-wrap;
+  line-height: 1.45;
+  font-size: 14.5px;
 }
 
-.bot .bubble {
-  background: #1e293b;
-  color: #e2e8f0;
-  border: 1px solid #334155;
-  border-radius: 20px 20px 20px 4px;
-}
-
-.input-bar {
+/* -------- Chips (docs & fichiers) -------- */
+.chips {
   display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
   align-items: center;
-  padding: 12px 16px;
-  background: #1e293b;
-  border-top: 1px solid #334155;
-  flex-shrink: 0;
 }
 
-.input-bar input {
-  flex: 1;
-  padding: 12px 16px;
+.chips .label {
+  opacity: .75;
+  font-size: 12px;
+  margin-right: 4px;
+}
+
+.chip {
+  font-size: 12px;
+  line-height: 1;
+  padding: 7px 10px;
   border-radius: 999px;
-  border: 1px solid #334155;
-  background: #0f172a;
-  color: #e2e8f0;
-  font-size: 1rem;
-  outline: none;
+  background: #223043;
+  border: 1px solid #344a63;
+  color: #d9e3ee;
 }
 
-.input-bar button {
-  margin-left: 12px;
-  background: #414374ff;
+.bubble.me .chip.file {
+  background: rgba(255,255,255,.12);
+  border-color: rgba(255,255,255,.25);
+  color: #fff;
+}
+
+.used .used-chip {
+  background: #182433;
+  border-color: #2a3b51;
+}
+
+.chip.removeable {
+  cursor: pointer;
+}
+
+/* -------- Composeur -------- */
+.composer {
+  border-top: 1px solid #2a3441;
+  padding: 10px 14px 14px 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.dropzone {
+  position: relative;
+  border: 1px dashed #3b4a5e;
+  border-radius: 12px;
+  padding: 14px;
+  font-size: 13px;
+  background: #192230;
+}
+
+.dropzone.dragging {
+  border-color: #5ea5ff;
+  box-shadow: inset 0 0 0 2px rgba(94,165,255,.35);
+}
+
+.pick-btn {
+  position: relative;
+  overflow: hidden;
+  margin-left: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #0b5cff;
+  color: #fff;
   border: none;
-  border-radius: 50%;
-  width: 44px;
-  height: 44px;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s, transform 0.2s;
+  cursor: pointer;
+  font-size: 13px;
 }
 
-.input-bar button:hover {
-  background: #0284c7;
-  transform: scale(1.05);
+.pick-btn input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
 }
+
+.draft-chips {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.input-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.input-row input {
+  width: 100%;
+  border: 1px solid #3b4a5e;
+  background: #0f1720;
+  color: #e6edf3;
+  padding: 10px 12px;
+  border-radius: 12px;
+  outline: none;
+  font-size: 14px;
+}
+
+.input-row input::placeholder { color: #9cb0c7; }
+
+.input-row input:focus {
+  border-color: #5ea5ff;
+  box-shadow: 0 0 0 3px rgba(94,165,255,.2);
+}
+
+.send {
+  min-width: 110px;
+  border: none;
+  border-radius: 12px;
+  padding: 0 16px;
+  background: linear-gradient(180deg, #0d68ff, #0b5cff);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.send:active { transform: translateY(1px); }

@@ -1,203 +1,276 @@
+# ia_service.py
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import google.generativeai as genai
-import json, uuid, os
+import os, uuid, math, csv, io
 from collections import defaultdict
-from typing import List, Dict, Any
-import math
+from typing import Dict, List, Any
+
+# ---- ENV
 from dotenv import load_dotenv
 load_dotenv()
+
+API_KEY = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY") or ""
+if API_KEY:
+    genai.configure(api_key=API_KEY)
+MODEL = genai.GenerativeModel("gemini-2.0-flash") if API_KEY else None
 
 app = Flask(__name__)
 CORS(app)
 
-# === GEMINI CONFIG (clé via ENV) ===
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-if not GEMINI_API_KEY:
-    print("⚠️  GEMINI_API_KEY manquante dans les variables d'environnement")
-genai.configure(api_key=GEMINI_API_KEY)
-conversation_model = genai.GenerativeModel('gemini-2.5-flash')
-knowledge_model = genai.GenerativeModel('gemini-2.5-flash')
+# Mémoire: DOCS[scope][docName] = [ {page:int, text:str, vec:[float,...]} ]
+DOCS: Dict[str, Dict[str, List[Dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
 
-# === DocQA: stockage en mémoire (simple & suffisant pour PFE démo) ===
-# Structure: { doc_name: [{"page":int, "text":str, "vec":[float,...]}] }
-DOCS: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+# ---- PDF optionnel
+try:
+    from pypdf import PdfReader
+    HAS_PDF = True
+except Exception:
+    HAS_PDF = False
 
-def embed(text: str) -> List[float]:
-    # petit embedd simplifié (fallback si tu n’as pas d’embeddings locaux)
-    # On calcule une vectorisation "pauvre" mais déterministe (moyenne ascii normalisée)
-    if not text:
+# ---- Embedding jouet (démo)
+def embed(txt: str) -> List[float]:
+    if not txt:
         return [0.0]
-    s = [ord(c) for c in text[:2048]]
+    s = [ord(c) for c in txt[:2048]]
     mean = sum(s) / len(s)
     return [mean / 255.0]
 
 def cosine(a: List[float], b: List[float]) -> float:
     if not a or not b:
         return 0.0
-    num = sum(x*y for x,y in zip(a,b))
-    da = math.sqrt(sum(x*x for x in a))
-    db = math.sqrt(sum(y*y for y in b))
-    return 0.0 if da==0 or db==0 else num/(da*db)
+    num = sum(x * y for x, y in zip(a, b))
+    da = math.sqrt(sum(x * x for x in a))
+    db = math.sqrt(sum(y * y for y in b))
+    return 0.0 if da == 0 or db == 0 else num / (da * db)
 
+def _chunk(text: str, n: int = 1600):
+    for i in range(0, len(text), n):
+        yield (i // n) + 1, text[i : i + n]
+
+# ------------------ SCOPE ------------------
+def _scope() -> str:
+    """
+    Clé de stockage/lecture:
+    - si 'conv' présent (multipart/json/query), on utilise 'conv::<id>' (principe: par conversation)
+    - sinon on retombe sur le namespace (email) en lowercase, ou 'guest'
+    """
+    conv = None
+    if request.method in ("POST", "PUT", "PATCH"):
+        ct = request.content_type or ""
+        if "multipart/form-data" in ct:
+            conv = request.form.get("conv")
+        elif "application/json" in ct:
+            j = request.get_json(silent=True) or {}
+            conv = j.get("conversationId") or j.get("conv")
+    if not conv:
+        conv = request.args.get("conv")
+
+    if conv:
+        return f"conv::{str(conv).strip()}"
+
+    # fallback namespace
+    ns = None
+    if request.method in ("POST", "PUT", "PATCH"):
+        ct = request.content_type or ""
+        if "multipart/form-data" in ct:
+            ns = request.form.get("ns")
+        elif "application/json" in ct:
+            j = request.get_json(silent=True) or {}
+            ns = j.get("ns")
+    if not ns:
+        ns = request.args.get("ns") or request.headers.get("X-Doc-NS")
+    ns = (ns or "guest").strip().lower()
+    return ns or "guest"
+
+# ------------------ HEALTH ------------------
 @app.get("/health")
 def health():
-    return {"ok": True, "docs": len(DOCS)}
+    total_docs = sum(len(v) for v in DOCS.values())
+    return {"ok": True, "scopes": len(DOCS), "docs_total": total_docs, "ai_ready": bool(MODEL)}
 
-# === Ingestion PDF "simulée" (tu peux brancher un vrai parseur PDF plus tard) ===
-# Ici on accepte du texte brut ou pseudo-PDF via champ 'text' si besoin.
+@app.get("/envcheck")
+def envcheck():
+    return {
+        "GOOGLE_API_KEY_set": bool(os.getenv("GOOGLE_API_KEY")),
+        "GEMINI_API_KEY_set": bool(os.getenv("GEMINI_API_KEY")),
+        "configured": bool(MODEL),
+    }
+
+# ------------------ DOCS LIST ------------------
+@app.get("/docs")
+def list_docs():
+    scope = _scope()
+    docs = [{"name": d, "pages": len(chunks)} for d, chunks in DOCS.get(scope, {}).items()]
+    return jsonify({"ok": True, "ns": scope, "count": len(docs), "docs": docs})
+
+# ------------------ INGEST ------------------
 @app.post("/ingest")
 def ingest():
-    """
-    Deux modes:
-    - multipart/form-data avec 'file' (PDF non traité finement ici, démo simple)
-    - application/json avec {"name":"Doc1","pages":[{"page":1,"text":"..."}, ...]}
-    """
+    scope = _scope()
+    print(f"[ingest] scope={scope}")
+
+    # JSON (pages déjà extraites)
     if request.content_type and "application/json" in request.content_type:
         data = request.get_json() or {}
         name = data.get("name") or f"doc_{uuid.uuid4().hex[:6]}"
-        pages = data.get("pages", [])
-        DOCS[name].clear()
-        for p in pages:
-            text = p.get("text","")
-            DOCS[name].append({"page": p.get("page",1), "text": text, "vec": embed(text)})
-        return jsonify({"ok": True, "doc": name, "pages": len(DOCS[name])})
+        DOCS[scope][name].clear()
+        for p in data.get("pages", []):
+            text = p.get("text", "")
+            DOCS[scope][name].append({"page": int(p.get("page", 1)), "text": text, "vec": embed(text)})
+        return jsonify({"ok": True, "ns": scope, "doc": name, "pages": len(DOCS[scope][name])})
 
+    # FICHIER
     f = request.files.get("file")
     if not f:
-        return jsonify({"error": "Aucun fichier reçu"}), 400
-    name = f.filename or f"doc_{uuid.uuid4().hex[:6]}"
+        return jsonify({"error": "Aucun fichier"}), 400
+
+    filename = (f.filename or "").strip()
+    name = filename or f"doc_{uuid.uuid4().hex[:6]}"
+    lower = filename.lower()
+
+    if lower.endswith(".pdf"):
+        if not HAS_PDF:
+            return jsonify({"error": "pypdf manquant (pip install pypdf)"}), 500
+        reader = PdfReader(f.stream)
+        DOCS[scope][name].clear()
+        for i, page in enumerate(reader.pages, start=1):
+            text = (page.extract_text() or "").strip()
+            DOCS[scope][name].append({"page": i, "text": text, "vec": embed(text)})
+        return jsonify({"ok": True, "ns": scope, "doc": name, "pages": len(DOCS[scope][name])})
+
+    if lower.endswith(".csv"):
+        content = f.read().decode(errors="ignore")
+        sio = io.StringIO(content)
+        r = csv.reader(sio)
+        rows = list(r)
+        header = rows[0] if rows else []
+        text = "\n".join([", ".join(row) for row in rows[:2000]])
+        DOCS[scope][name].clear()
+        for pageno, ch in _chunk(text):
+            DOCS[scope][name].append({"page": pageno, "text": ch, "vec": embed(ch)})
+        return jsonify({"ok": True, "ns": scope, "doc": name, "pages": len(DOCS[scope][name]), "columns": header})
+
+    # TXT / autres
     text = f.read().decode(errors="ignore")
-    # Découpage grossier en "pages" par blocs de 1200 caractères
-    DOCS[name].clear()
-    chunk = 1200
-    for i in range(0, len(text), chunk):
-        page_text = text[i:i+chunk]
-        DOCS[name].append({"page": (i//chunk)+1, "text": page_text, "vec": embed(page_text)})
-    return jsonify({"ok": True, "doc": name, "pages": len(DOCS[name])})
+    DOCS[scope][name].clear()
+    for pageno, ch in _chunk(text):
+        DOCS[scope][name].append({"page": pageno, "text": ch, "vec": embed(ch)})
+    return jsonify({"ok": True, "ns": scope, "doc": name, "pages": len(DOCS[scope][name])})
 
-class SearchQ:
-    def __init__(self, q: str, k: int = 5):
-        self.q = q
-        self.k = max(1, min(10, int(k or 5)))
-
+# ------------------ RECHERCHE SIMPLE ------------------
 @app.post("/search")
 def search():
     data = request.get_json() or {}
-    q = data.get("q","").strip()
-    k = int(data.get("k", 5))
-    s = SearchQ(q, k)
-    qv = embed(s.q)
+    # privilégie conv si présent dans le body, sinon scope()
+    scope = f"conv::{data.get('conversationId')}" if data.get("conversationId") else _scope()
+    q = (data.get("q") or "").strip()
+    k = int(data.get("k") or 5)
+    qv = embed(q)
+
     hits = []
-    for doc, chunks in DOCS.items():
+    for doc, chunks in DOCS.get(scope, {}).items():
         for ch in chunks:
             score = cosine(qv, ch["vec"])
-            hits.append({
-                "doc": doc,
-                "page": ch["page"],
-                "excerpt": ch["text"][:500],
-                "score": float(score)
-            })
+            hits.append({"doc": doc, "page": ch["page"], "excerpt": ch["text"][:800], "score": float(score)})
     hits.sort(key=lambda x: x["score"], reverse=True)
-    return jsonify(hits[:s.k])
+    return jsonify(hits[:k])
 
-# === ROUTE CLASSIQUE CHAT (Agent conversationnel) ===
-@app.post('/api/ai/chat')
-def handle_chat():
-    try:
-        data = request.get_json() or {}
-        history_from_spring = data.get('history', [])
-        gemini_history = [
-            {"role": "model" if msg.get('role') == 'assistant' else 'user', "parts": [msg.get('content','')]}
-            for msg in history_from_spring
-        ]
-        history_for_start = gemini_history[:-1]
-        current_message = gemini_history[-1]['parts'] if gemini_history else ["Bonjour"]
-        chat = conversation_model.start_chat(history=history_for_start)
-        response = chat.send_message(current_message)
-        return jsonify({"reply": response.text})
-    except Exception as e:
-        print(f"Erreur /api/ai/chat: {e}")
-        return jsonify({"error": str(e)}), 500
-
-# === EXTRACTION D'INSTRUCTIONS (facultatif) ===
-@app.post('/api/ai/extract_instruction')
-def handle_instruction_extraction():
-    try:
-        data = request.get_json() or {}
-        user_message = data.get('user_message')
-        if not user_message:
-            return jsonify({"error": "user_message manquant"}), 400
-        prompt = f"""
-        Analyse la requête et renvoie un JSON {{ "action": "...", "parameters": {{...}} }}.
-        Actions: "knowledge_query", "general_conversation", "docqa_search".
-        Requête: "{user_message}"
-        JSON:
-        """
-        response = conversation_model.generate_content(prompt)
-        txt = (response.text or "").strip().replace("`","")
-        if txt.lower().startswith("json"):
-            txt = txt[4:].strip()
-        return jsonify(json.loads(txt))
-    except Exception as e:
-        print(f"Erreur extraction instruction: {e}")
-        return jsonify({"action":"general_conversation","parameters":{}}), 200
-
-# === MCP : Communication entre agents ===
-@app.post('/mcp/execute')
+# ------------------ MCP / EXECUTE ------------------
+@app.post("/mcp/execute")
 def mcp_execute():
     try:
         data = request.get_json() or {}
         action = data.get("action")
-        parameters = data.get("parameters", {})
-        request_id = data.get("id", str(uuid.uuid4()))
+        params = data.get("parameters", {}) or {}
+        rid = data.get("id", uuid.uuid4().hex)
 
+        def ai_not_configured():
+            return jsonify({
+                "version": "1.0", "id": rid, "status": "success",
+                "data": {"reply": "Le moteur IA n'est pas configuré (clé API manquante). Définis GOOGLE_API_KEY (ou GEMINI_API_KEY) puis redémarre le service."}
+            })
+
+        # -------- GENERAL --------
         if action == "general_conversation":
-            message = parameters.get("message","")
-            chat = conversation_model.start_chat()
-            response = chat.send_message(message)
-            return jsonify({"version":"1.0","id":request_id,"status":"success","data":{"reply": response.text}})
+            scope = _scope()
+            print(f"[mcp] action=general_conversation scope={scope} doc={params.get('doc')} docs={params.get('docs')}")
+            if not MODEL:
+                return ai_not_configured()
+            msg = params.get("message", "")
+            resp = MODEL.generate_content(msg)
+            return jsonify({"version": "1.0", "id": rid, "status": "success",
+                            "data": {"reply": (resp.text or "").strip()}})
 
-        elif action == "knowledge_query":
-            query = parameters.get("query","Donne-moi des informations.")
-            response = knowledge_model.generate_content(f"Base de connaissance: {query}")
-            return jsonify({"version":"1.0","id":request_id,"status":"success","data":{"reply": response.text}})
-
-        elif action == "docqa_search":
-            q = parameters.get("q","").strip()
-            k = int(parameters.get("k",5))
-            # Réutilise la logique /search
+        # -------- DOCQA SEARCH (optionnel) --------
+        if action == "docqa_search":
+            scope = _scope()
+            print(f"[mcp] action=docqa_search scope={scope}")
+            q = (params.get("q") or "").strip()
+            k = int(params.get("k") or 5)
             qv = embed(q)
             hits = []
-            for doc, chunks in DOCS.items():
+            for doc, chunks in DOCS.get(scope, {}).items():
                 for ch in chunks:
                     score = cosine(qv, ch["vec"])
-                    hits.append({
-                        "doc": doc,
-                        "page": ch["page"],
-                        "excerpt": ch["text"][:500],
-                        "score": float(score)
-                    })
+                    hits.append({"doc": doc, "page": ch["page"], "excerpt": ch["text"][:800], "score": float(score)})
             hits.sort(key=lambda x: x["score"], reverse=True)
-            best = hits[:k]
-            # Formate une réponse textuelle + citations
-            if not best:
-                reply = "Aucune correspondance trouvée dans les documents ingérés."
-            else:
-                lines = []
-                for h in best:
-                    lines.append(f"- {h['doc']} (p.{h['page']}, score {h['score']:.2f}) : {h['excerpt']}")
-                reply = "Résultats DocQA:\n" + "\n".join(lines)
-            return jsonify({"version":"1.0","id":request_id,"status":"success",
-                            "data":{"reply": reply, "citations": best}})
+            reply = "Aucune correspondance." if not hits else "\n".join(
+                f"- {h['doc']} p.{h['page']} ({h['score']:.2f}): {h['excerpt'][:200]}…" for h in hits[:k]
+            )
+            return jsonify({"version": "1.0", "id": rid, "status": "success",
+                            "data": {"reply": reply, "citations": hits[:k], "ns": scope}})
 
-        else:
-            return jsonify({"version":"1.0","id":request_id,"status":"error",
-                            "error": f"Action non supportée: {action}"}), 400
+        # -------- DOCQA ANSWER (RAG) --------
+        if action == "docqa_answer":
+            scope = _scope()
+            print(f"[mcp] action=docqa_answer scope={scope} doc={params.get('doc')} docs={params.get('docs')}")
+            if not MODEL:
+                return ai_not_configured()
+
+            q = (params.get("q") or "").strip()
+            k = int(params.get("k") or 5)
+
+            # Filtrage explicite des fichiers du tour (doc/docs)
+            only_doc = params.get("doc")
+            only_docs = params.get("docs") or []
+            allow = set([only_doc] if only_doc else []) | set(only_docs)
+
+            qv = embed(q)
+            hits = []
+            for doc, chunks in DOCS.get(scope, {}).items():
+                if allow and doc not in allow:
+                    continue
+                for ch in chunks:
+                    score = cosine(qv, ch["vec"])
+                    hits.append({"doc": doc, "page": ch["page"], "excerpt": ch["text"][:1200], "score": float(score)})
+
+            hits.sort(key=lambda x: x["score"], reverse=True)
+            top = hits[:k]
+
+            if not top:
+                return jsonify({"version": "1.0", "id": rid, "status": "success",
+                                "data": {"reply": "NO_CONTEXT", "citations": [], "ns": scope}})
+
+            ctx = "\n\n".join([f"[{h['doc']} p.{h['page']}] {h['excerpt']}" for h in top])
+            prompt = (
+                "Réponds strictement à partir du contexte.\n"
+                "Si l'information manque dans le contexte, dis-le franchement.\n\n"
+                f"Contexte:\n{ctx}\n\nQuestion: {q}\n"
+                "Réponse en français, concise, avec références [doc p.page] si utile."
+            )
+            resp = MODEL.generate_content(prompt)
+            out = (resp.text or "").strip()
+            return jsonify({"version": "1.0", "id": rid, "status": "success",
+                            "data": {"reply": out, "citations": top, "ns": scope}})
+
+        # -------- UNKNOWN --------
+        return jsonify({"version": "1.0", "id": rid, "status": "error",
+                        "error": f"Action inconnue: {action}"}), 400
 
     except Exception as e:
-        print(f"Erreur MCP: {e}")
-        return jsonify({"version":"1.0","id":str(uuid.uuid4()),"status":"error","error": str(e)}), 500
+        return jsonify({"version": "1.0", "id": uuid.uuid4().hex, "status": "error", "error": str(e)}), 500
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=False)
+# ------------------------------------------------------
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=False)

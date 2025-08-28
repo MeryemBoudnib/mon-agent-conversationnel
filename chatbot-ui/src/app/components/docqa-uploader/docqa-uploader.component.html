@@ -1,0 +1,65 @@
+<div class="docqa-wrap">
+  <!-- Barre supérieure -->
+  <div class="topbar">
+    <button mat-fab color="primary" matTooltip="Ajouter un document"
+            (click)="pickFile(fileInput)">
+      <mat-icon>add</mat-icon>
+    </button>
+
+    <input #fileInput type="file" [accept]="accept" hidden (change)="onFileInput($event)" />
+
+    <div class="file-chip" *ngIf="selectedFile() as f">
+      <mat-chip-row>
+        <mat-icon>description</mat-icon>
+        {{ f.name }}
+        <button mat-icon-button (click)="selectedFile.set(null)" aria-label="supprimer">
+          <mat-icon>close</mat-icon>
+        </button>
+      </mat-chip-row>
+
+      <button mat-raised-button color="accent" (click)="uploadSelected()" [disabled]="isUploading()">
+        <mat-icon>cloud_upload</mat-icon>
+        Importer
+      </button>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="health" *ngIf="healthInfo() as h">
+      <mat-chip>{{ h.docs || 0 }} doc(s)</mat-chip>
+    </div>
+  </div>
+
+  <div class="zone"
+       (drop)="onDrop($event)"
+       (dragover)="onDragOver($event)">
+    <mat-icon class="zone-icon">cloud_upload</mat-icon>
+    <div>Glisser-déposer un fichier (PDF/TXT/CSV) <br/>ou cliquer sur <b>+</b> pour choisir</div>
+  </div>
+
+  <mat-progress-bar *ngIf="isUploading()" mode="indeterminate"></mat-progress-bar>
+
+  <!-- Recherche -->
+  <mat-card class="search-card">
+    <mat-card-title>Recherche dans les documents</mat-card-title>
+    <div class="search-row">
+      <mat-form-field class="q">
+        <mat-label>Écrire une question…</mat-label>
+<input matInput [(ngModel)]="query">
+      </mat-form-field>
+      <button mat-raised-button color="primary" (click)="search()" [disabled]="isSearching()">
+        <mat-icon>search</mat-icon> Chercher
+      </button>
+      <button mat-button (click)="clearResults()" *ngIf="results().length">Effacer</button>
+    </div>
+    <mat-progress-bar *ngIf="isSearching()" mode="indeterminate"></mat-progress-bar>
+
+    <mat-list *ngIf="results().length">
+      <mat-list-item *ngFor="let h of results()">
+        <mat-icon matListItemIcon>description</mat-icon>
+        <div matListItemTitle>{{ h.doc }} — p.{{ h.page }} ({{ h.score | number:'1.2-2' }})</div>
+        <div matListItemLine class="excerpt">{{ h.excerpt }}</div>
+      </mat-list-item>
+    </mat-list>
+  </mat-card>
+</div>

@@ -1,4 +1,3 @@
-// src/main/java/com/chat_orchestrator/chat_orchestrator/entity/User.java
 package com.chat_orchestrator.chat_orchestrator.entity;
 
 import jakarta.persistence.*;
@@ -13,23 +12,23 @@ import java.util.List;
 
 @Entity
 @Table(name = "users")
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class User implements UserDetails {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private String firstName;
     private String lastName;
 
-    @Column(name = "created_at", nullable = false)
+    /**
+     * Laisse nullable=true pour éviter l'échec de migration automatique si des lignes existent déjà.
+     * On la remplit en @PrePersist pour les nouveaux enregistrements.
+     */
+    @Column(updatable = false)
     private Instant createdAt;
 
-    @Column(unique = true)
+    @Column(unique = true, nullable = false)
     private String email;
 
     private String password;
@@ -37,16 +36,19 @@ public class User implements UserDetails {
     @Enumerated(EnumType.STRING)
     private Role role; // USER, ADMIN
 
+    /** Null = pas banni. Si > now() => banni jusqu'à cette date */
+    @Column(name = "banned_until")
+    private Instant bannedUntil;
+
     @PrePersist
-    void prePersist() {
-        if (createdAt == null) createdAt = Instant.now();
+    void onCreate() {
+        if (this.createdAt == null) this.createdAt = Instant.now();
     }
 
-    @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
+    // --- Spring Security ---
+    @Override public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
     }
-
     @Override public String getUsername() { return email; }
     @Override public boolean isAccountNonExpired() { return true; }
     @Override public boolean isAccountNonLocked() { return true; }

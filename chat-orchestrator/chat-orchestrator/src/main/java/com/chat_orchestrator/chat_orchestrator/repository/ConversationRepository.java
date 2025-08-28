@@ -15,4 +15,6 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
     List<Conversation> findByOwnerOrderByDateDesc(User owner);
     Optional<Conversation> findTopByOwnerOrderByDateDesc(User owner);
     long countByOwner(User owner);
+    List<Conversation> findByOwner_IdOrderByDateDesc(Long userId);
+
 }

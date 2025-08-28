@@ -1,30 +1,54 @@
+<div class="chat-root">
+  <!-- Zone des messages -->
+  <div class="messages">
+    <div *ngFor="let m of messages" class="bubble" [class.me]="m.role==='user'">
+      <div class="bubble-inner">
+        <div class="bubble-text" [innerText]="m.content"></div>
 
-<div class="chat-wrapper">
-  <div class="messages" #chatContainer>
-    <div
-      *ngFor="let msg of messages"
-      class="message-container"
-      [ngClass]="{'user': msg.role === 'user', 'bot': msg.role === 'bot'}"
-    >
-      <div class="bubble">
-        {{ msg.content }}
-        <div style="font-size: 0.7em; opacity: 0.5; margin-top: 4px;" *ngIf="msg.timestamp">
-          {{ msg.timestamp | date:'shortTime' }}
+        <!-- Fichiers attachés par l'utilisateur sur ce tour -->
+        <div class="chips" *ngIf="m.attachments?.length && m.role==='user'">
+          <span class="chip file" *ngFor="let a of m.attachments" [title]="a.type">{{ a.name }}</span>
+        </div>
+
+        <!-- Documents réellement utilisés par la réponse de l'assistant -->
+        <div class="chips used" *ngIf="m.usedDocs?.length">
+          <span class="label">Docs :</span>
+          <span class="chip used-chip" *ngFor="let d of m.usedDocs">{{ d }}</span>
         </div>
       </div>
     </div>
   </div>
 
-  <form class="input-bar" (ngSubmit)="sendMessage()">
-    <input
-      [(ngModel)]="newMessage"
-      name="message"
-      placeholder="Écrire un message…"
-      required
-      autocomplete="off"
-    />
-    <button mat-icon-button type="submit">
-      <mat-icon>send</mat-icon>
-    </button>
-  </form>
+  <!-- Composeur -->
+  <div class="composer">
+    <!-- Dropzone + sélection -->
+    <div class="dropzone"
+         [class.dragging]="dragging"
+         (dragover)="onDragOver($event)"
+         (dragleave)="onDragLeave($event)"
+         (drop)="onDrop($event)">
+      Dépose tes fichiers ici, ou
+      <button type="button" class="pick-btn">
+        Sélect. fichiers
+        <input type="file" multiple (change)="onFilePicked($event)"/>
+      </button>
+
+      <!-- Fichiers en attente d’envoi -->
+      <div class="draft-chips" *ngIf="draft.length">
+        <span class="chip file removeable"
+              *ngFor="let d of draft; let i = index"
+              (click)="removeDraft(i)"
+              title="Cliquer pour retirer">
+          {{ d.name }} ✕
+        </span>
+      </div>
+    </div>
+
+    <!-- Saisie + bouton envoyer -->
+    <div class="input-row">
+      <input [(ngModel)]="text" name="message" placeholder="Écrire un message…"/>
+      <button class="send" (click)="send()">Envoyer</button>
+    </div>
+  </div>
 </div>
+  

@@ -1,75 +1,47 @@
-// CHEMIN : src/app/services/chat.service.ts
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable } from 'rxjs';
-
-export interface Message {
-  role: 'user' | 'bot';
-  content: string;
-  timestamp?: string;
-}
+import { Observable, Subject } from 'rxjs';
 
 export interface Conversation {
   id: number;
   title: string;
-  date?: string;
-  messages?: Message[];
+  date?: string | number | null;
+}
+
+export interface ChatReply {
+  reply: string;
+  conversationId: number;
+  usedDocs?: string[];
 }
 
 @Injectable({ providedIn: 'root' })
 export class ChatService {
   private readonly API = 'http://localhost:8080/api';
-
-  // ---- Stream pour prévenir la sidebar/historique d’un refresh
-  private historyUpdatedSubject = new BehaviorSubject<void>(undefined);
-  historyUpdated$ = this.historyUpdatedSubject.asObservable();
-  notifyHistoryUpdate(): void { this.historyUpdatedSubject.next(); }
+  readonly historyUpdated$ = new Subject<void>();
 
   constructor(private http: HttpClient) {}
 
-  /* =========================
-     HISTORIQUE (⚠️ /api/history)
-  ========================== */
-getHistory(): Observable<Conversation[]> {
-  return this.http.get<Conversation[]>(`${this.API}/conversations/history`);
-}
-
-
-  /* =========================
-     CONVERSATIONS
-  ========================== */
-  createConversation(): Observable<Conversation> {
-    return this.http.post<Conversation>(`${this.API}/conversations/create`, {});
+  handleChat(
+    message: string,
+    opts?: { doc?: string | null; docs?: string[]; conversationId?: number | null }
+  ): Observable<ChatReply> {
+    const body: any = { message };
+    if (opts?.doc) body.doc = opts.doc;
+    if (opts?.docs?.length) body.docs = opts.docs;
+    if (opts?.conversationId != null) body.conversationId = opts.conversationId;
+    return this.http.post<ChatReply>(`${this.API}/chat`, body);
   }
 
+  getHistory(): Observable<Conversation[]> {
+    return this.http.get<Conversation[]>(`${this.API}/conversations/history`);
+  }
   deleteConversation(id: number): Observable<void> {
     return this.http.delete<void>(`${this.API}/conversations/${id}`);
   }
-
   deleteAllConversations(): Observable<void> {
     return this.http.delete<void>(`${this.API}/conversations`);
   }
-
-  /* =========================
-     MESSAGES
-  ========================== */
-  getConversationMessages(convId: number): Observable<Message[]> {
-    return this.http.get<Message[]>(`${this.API}/conversations/${convId}/messages`);
-  }
-// chat.service.ts
-saveMessage(convId: number, role: 'user' | 'bot', content: string): Observable<void> {
-  return this.http.post<void>(`${this.API}/conversations/${convId}/messages`, { role, content });
-}
-
-
-  /* =========================
-     BOT
-  ========================== */
-  handleChat(message: string): Observable<{ reply: string }> {
-    return this.http.post<{ reply: string }>(`${this.API}/chat/handle`, { message });
-  }
-
-  askAI(message: string): Observable<{ reply: string }> {
-    return this.http.post<{ reply: string }>(`${this.API}/chat/ask`, { message });
+  notifyHistoryUpdate(): void {
+    this.historyUpdated$.next();
   }
 }
