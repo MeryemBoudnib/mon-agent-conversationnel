@@ -1,0 +1,59 @@
+<div class="ai-box">
+  <div class="ai-head">
+    <div>
+      <h3>Résumé IA (période)</h3>
+      <small *ngIf="summary">
+        {{summary.data.period.from}} → {{summary.data.period.to}}
+        • P90 médiane {{summary.data.p90.median | number:'1.2-2'}}s
+        • P90 max {{summary.data.p90.max | number:'1.2-2'}}s
+      </small>
+    </div>
+    <div class="slo">SLO P90: <strong>{{sloP90}}s</strong></div>
+  </div>
+
+  <div *ngIf="loading" class="loading">Chargement…</div>
+  <div *ngIf="error" class="error">{{error}}</div>
+
+  <div *ngIf="summary && !loading" class="summary">
+    <pre class="llm">{{summary.summary_text}}</pre>
+    <ul class="meta">
+      <li>Tendance : <b>{{summary.data.trend.direction}}</b> ({{summary.data.trend.slope_sec_per_hour | number:'1.1-1'}} s/h)</li>
+      <li>Points : {{summary.data.points}}</li>
+      <li>Anomalies vs baseline p95 : {{summary.data.anomalies_vs_baseline_p95}}</li>
+      <li>LLM : {{summary.used_llm ? 'actif' : 'inactif'}}</li>
+    </ul>
+  </div>
+</div>
+
+<div class="ai-box">
+  <div class="ai-head">
+    <h3>Prévision P90 (prochaine heure)</h3>
+    <div class="right">
+      <span *ngIf="forecast" class="overall"
+            [class.alert]="forecast.alert">
+        Alerte : <b>{{forecast?.alert ? 'OUI' : 'non'}}</b>
+      </span>
+    </div>
+  </div>
+
+  <table *ngIf="forecast" class="tbl">
+    <thead>
+      <tr>
+        <th>Heure</th>
+        <th>P90 prévu (s)</th>
+        <th>Prob. &gt; SLO</th>
+        <th>Risque</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let r of rows">
+        <td>{{r.ts | date:'shortTime'}}</td>
+        <td>{{r.p90 | number:'1.2-2'}}</td>
+        <td>{{r.probSloPct}}%</td>
+        <td><span [class]="badge(r.risk)">{{r.risk}}</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div *ngIf="!forecast && !loading && !error" class="empty">Aucune donnée de prévision.</div>
+</div>
