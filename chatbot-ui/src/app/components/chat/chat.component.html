@@ -1,16 +1,23 @@
 <div class="chat-root">
-  <!-- Zone des messages -->
+  <!-- Messages -->
   <div class="messages">
     <div *ngFor="let m of messages" class="bubble" [class.me]="m.role==='user'">
       <div class="bubble-inner">
-        <div class="bubble-text" [innerText]="m.content"></div>
 
-        <!-- Fichiers attachés par l'utilisateur sur ce tour -->
+        <!-- Assistant : rendu markdown ; User : texte brut -->
+        <ng-container *ngIf="m.role==='assistant'; else plainText">
+          <div class="bubble-text" [innerHTML]="asHtml(m.content)"></div>
+        </ng-container>
+        <ng-template #plainText>
+          <div class="bubble-text" [innerText]="m.content"></div>
+        </ng-template>
+
+        <!-- Fichiers joints de l’utilisateur -->
         <div class="chips" *ngIf="m.attachments?.length && m.role==='user'">
           <span class="chip file" *ngFor="let a of m.attachments" [title]="a.type">{{ a.name }}</span>
         </div>
 
-        <!-- Documents réellement utilisés par la réponse de l'assistant -->
+        <!-- Docs réellement utilisés (si renvoyés par l’API) -->
         <div class="chips used" *ngIf="m.usedDocs?.length">
           <span class="label">Docs :</span>
           <span class="chip used-chip" *ngFor="let d of m.usedDocs">{{ d }}</span>
@@ -19,36 +26,35 @@
     </div>
   </div>
 
-  <!-- Composeur -->
+  <!-- Barre composer -->
   <div class="composer">
-    <!-- Dropzone + sélection -->
-    <div class="dropzone"
-         [class.dragging]="dragging"
-         (dragover)="onDragOver($event)"
-         (dragleave)="onDragLeave($event)"
-         (drop)="onDrop($event)">
-      Dépose tes fichiers ici, ou
-      <button type="button" class="pick-btn">
-        Sélect. fichiers
-        <input type="file" multiple (change)="onFilePicked($event)"/>
-      </button>
+    <div class="bar">
+      <div class="input-row with-mic">
+        <label class="attach" title="Joindre">
+          <input type="file" multiple (change)="onPickFiles($event)" />
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M16.5 6.5l-7.8 7.8a3 3 0 11-4.2-4.2l9.2-9.2a5 5 0 117.1 7.1l-9.9 9.9a7 7 0 11-9.9-9.9l8.5-8.5"
+                  fill="none" stroke="currentColor" stroke-width="2"/>
+          </svg>
+        </label>
 
-      <!-- Fichiers en attente d’envoi -->
-      <div class="draft-chips" *ngIf="draft.length">
-        <span class="chip file removeable"
-              *ngFor="let d of draft; let i = index"
-              (click)="removeDraft(i)"
-              title="Cliquer pour retirer">
+        <input [(ngModel)]="text" name="message" [placeholder]="recording ? 'Parlez… (écriture en direct)' : 'Écrire un message…'" />
+
+        <button type="button" class="mic" [class.rec]="recording" (click)="togglePress()" title="Démarrer/arrêter la dictée">
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 14a3 3 0 0 0 3-3V7a3 3 0 0 0-6 0v4a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V20H9v2h6v-2h-2v-2.08A7 7 0 0 0 19 11h-2z"/>
+          </svg>
+          <span *ngIf="recording" class="rec-dot" aria-hidden="true"></span>
+        </button>
+
+        <button class="send" (click)="send()">Envoyer</button>
+      </div>
+
+      <div class="drafts" *ngIf="draft.length">
+        <span class="chip draft" *ngFor="let d of draft; let i = index" (click)="removeDraft(i)" title="Retirer">
           {{ d.name }} ✕
         </span>
       </div>
     </div>
-
-    <!-- Saisie + bouton envoyer -->
-    <div class="input-row">
-      <input [(ngModel)]="text" name="message" placeholder="Écrire un message…"/>
-      <button class="send" (click)="send()">Envoyer</button>
-    </div>
   </div>
 </div>
-  

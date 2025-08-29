@@ -1,170 +1,193 @@
-:host { display: block; height: 100%; }
+:root{
+  /* ===== Palette claire bleutée ===== */
+  --bg-top:      #f7fbff;
+  --bg-bottom:   #e9f2ff;
+  --ink:         #0f1d3a;   /* texte principal */
+  --muted:       #6b7a94;   /* texte secondaire */
+  --panel:       #ffffff;
+  --panel-bd:    #dfe7f5;
 
-.chat-root {
-  height: 100%;
-  display: grid;
+  --field:       #f5f8ff;
+  --field-bd:    #d6e4ff;
+  --field-focus: #9cc4ff;
+
+  --chip:        #f1f6ff;
+  --chip-bd:     #d7e6ff;
+
+  --primary:     #2b7cff;   /* bleu moderne */
+  --primary-700: #1f5eea;
+  --primary-50:  #eef5ff;
+
+  --success:     #12d6a7;
+  --danger:      #ff5a5a;
+
+  --shadow-s:    0 1px 2px rgba(15,29,58,.05);
+  --shadow-m:    0 8px 24px rgba(15,29,58,.10);
+  --shadow-l:    0 18px 40px rgba(15,29,58,.14);
+}
+
+:host{ display:block; height:100% }
+
+/* ===== Layout global (clair) ===== */
+.chat-root{
+  height:100%;
+  display:grid;
   grid-template-rows: 1fr auto;
-  background: #1f2630;
-  color: #e6edf3;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  background: linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell;
 }
 
-/* -------- Messages -------- */
-.messages {
-  padding: 16px 14px 0 14px;
-  overflow: auto;
-  scroll-behavior: smooth;
+/* ===== Zone messages ===== */
+.messages{
+  padding: 20px 16px 140px; /* espace pour la barre en bas */
+  overflow:auto;
+  scroll-behavior:smooth;
 }
 
-.bubble { display:flex; width:100%; }
+.bubble{ display:flex; margin:12px 0 }
+.bubble.me{ justify-content:flex-end }
 
-
-.bubble.me {
-  justify-content: flex-end;
-}
-
-.bubble-inner {
-  background: #0f1720;
-  border: 1px solid #2a3441;
-  border-radius: 14px;
+.bubble-inner{
+  max-width: 72ch;
   padding: 12px 14px;
-  box-shadow: 0 2px 10px rgba(0,0,0,.25);
+  border-radius: 14px;
+  background: var(--panel);
+  border: 1px solid var(--panel-bd);
+  box-shadow: var(--shadow-s);
+}
+.bubble.me .bubble-inner{
+  background: var(--primary-50);
+  border-color: #cfe0ff;
 }
 
-.bubble.me .bubble-inner {
-  background: #0b5cff;
-  color: #ffffff;
-  border-color: #0b5cff;
+/* Texte des bulles */
+.bubble-text{ word-break: break-word }
+.bubble-text p{ margin:.25rem 0 }
+.bubble-text ul{
+  margin:.2rem 0 .4rem;
+  padding-left: 1.25rem;
+}
+.bubble-text li{ margin:.15rem 0 }
+
+/* ===== Chips (docs/fichiers) ===== */
+.chips{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px }
+.chips.used .label{ color:var(--muted); margin-right:4px; font-weight:600 }
+.chip{
+  font-size:12.5px; padding:6px 10px;
+  border-radius:999px;
+  background: var(--chip);
+  border: 1px solid var(--chip-bd);
+  color: var(--ink);
+}
+.used-chip{ background:#edf4ff; border-color:#cfe0ff; color:#1e3c78 }
+.chip.file{ background:#f7faff; border-color:#dfeaff }
+
+/* ===== Composer (barre de saisie) ===== */
+.composer{
+  position: sticky; bottom: 0;
+  padding: 12px 16px 18px;
+  background: linear-gradient(to top, rgba(255,255,255,.85), rgba(255,255,255,0) 65%);
+  backdrop-filter: blur(2px);
+  z-index: 50;
+  border-top: 1px solid #e6eefc;
 }
 
-.bubble-text {
-  white-space: pre-wrap;
-  line-height: 1.45;
-  font-size: 14.5px;
+.bar{
+  width: min(980px, 100%);
+  margin: 0 auto;
+  background: var(--panel);
+  border: 1px solid var(--panel-bd);
+  border-radius: 18px;
+  padding: 10px;
+  box-shadow: var(--shadow-m);
 }
 
-/* -------- Chips (docs & fichiers) -------- */
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
-  align-items: center;
-}
-
-.chips .label {
-  opacity: .75;
-  font-size: 12px;
-  margin-right: 4px;
-}
-
-.chip {
-  font-size: 12px;
-  line-height: 1;
-  padding: 7px 10px;
-  border-radius: 999px;
-  background: #223043;
-  border: 1px solid #344a63;
-  color: #d9e3ee;
-}
-
-.bubble.me .chip.file {
-  background: rgba(255,255,255,.12);
-  border-color: rgba(255,255,255,.25);
-  color: #fff;
-}
-
-.used .used-chip {
-  background: #182433;
-  border-color: #2a3b51;
-}
-
-.chip.removeable {
-  cursor: pointer;
-}
-
-/* -------- Composeur -------- */
-.composer {
-  border-top: 1px solid #2a3441;
-  padding: 10px 14px 14px 14px;
-  display: grid;
+/* rangée: attach | input | mic | send */
+.input-row{
+  display:grid;
+  grid-template-columns: auto 1fr auto auto;
   gap: 10px;
+  align-items:center;
 }
 
-.dropzone {
+/* ===== Champ texte ===== */
+input[name="message"]{
+  height: 46px; width:100%;
+  background: var(--field);
+  border: 1px solid var(--field-bd);
+  border-radius: 14px;
+  color: var(--ink);
+  padding: 0 14px;
+  outline:none;
+  transition: border-color .15s, box-shadow .15s, background .15s;
+}
+input[name="message"]::placeholder{ color:var(--muted) }
+input[name="message"]:focus{
+  border-color: var(--field-focus);
+  box-shadow: 0 0 0 3px rgba(43,124,255,.18);
+  background: #ffffff;
+}
+
+/* ===== Boutons ===== */
+.attach,.mic{
   position: relative;
-  border: 1px dashed #3b4a5e;
-  border-radius: 12px;
-  padding: 14px;
-  font-size: 13px;
-  background: #192230;
+  width:46px; height:46px;
+  border-radius:14px;
+  border:1px solid var(--field-bd);
+  background: var(--field);
+  color: var(--ink);
+  display:inline-flex; align-items:center; justify-content:center;
+  cursor:pointer;
+  transition: transform .08s, border-color .15s, box-shadow .15s, background .15s;
+  box-shadow: var(--shadow-s);
+}
+.attach:hover,.mic:hover{
+  border-color: var(--field-focus);
+  background:#fff;
+  transform: translateY(-1px);
+}
+.attach:active,.mic:active{ transform: translateY(0) }
+.attach input[type=file]{ display:none }
+
+/* micro en enregistrement */
+.mic.rec{ border-color: var(--danger); box-shadow: 0 0 0 3px rgba(255,90,90,.18) }
+.mic .rec-dot{
+  position:absolute; top:6px; right:6px;
+  width:8px; height:8px; border-radius:50%;
+  background: var(--danger);
+  animation: blink 1s infinite;
 }
 
-.dropzone.dragging {
-  border-color: #5ea5ff;
-  box-shadow: inset 0 0 0 2px rgba(94,165,255,.35);
+/* Envoyer (bleu moderne) */
+.send{
+  height:46px; min-width:110px;
+  border:none; border-radius:14px; padding:0 18px;
+  color:#fff; font-weight:700; letter-spacing:.1px;
+  background: linear-gradient(180deg, var(--primary), var(--primary-700));
+  box-shadow: 0 8px 22px rgba(43,124,255,.25);
+  cursor:pointer;
+  transition: filter .12s, transform .06s, box-shadow .12s;
 }
+.send:hover{ filter:brightness(1.05); box-shadow: 0 10px 26px rgba(43,124,255,.32) }
+.send:active{ transform: translateY(1px) }
 
-.pick-btn {
-  position: relative;
-  overflow: hidden;
-  margin-left: 8px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: #0b5cff;
-  color: #fff;
-  border: none;
-  cursor: pointer;
-  font-size: 13px;
+/* ===== Drafts (fichiers à envoyer) ===== */
+.drafts{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px }
+.chip.draft{
+  background:#ffffff;
+  border:1px solid var(--panel-bd);
+  color:var(--ink);
+  padding:6px 10px; border-radius:12px; font-size:12.5px; cursor:pointer;
+  box-shadow: var(--shadow-s);
 }
+.chip.draft:hover{ border-color: var(--field-focus) }
 
-.pick-btn input[type="file"] {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
+/* ===== Petites animations ===== */
+@keyframes blink{ 50%{ opacity:.25 } }
+
+/* ===== Mobile ===== */
+@media (max-width:640px){
+  .bar{ border-radius:16px; padding:8px }
+  .send{ min-width:96px }
 }
-
-.draft-chips {
-  margin-top: 10px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.input-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
-}
-
-.input-row input {
-  width: 100%;
-  border: 1px solid #3b4a5e;
-  background: #0f1720;
-  color: #e6edf3;
-  padding: 10px 12px;
-  border-radius: 12px;
-  outline: none;
-  font-size: 14px;
-}
-
-.input-row input::placeholder { color: #9cb0c7; }
-
-.input-row input:focus {
-  border-color: #5ea5ff;
-  box-shadow: 0 0 0 3px rgba(94,165,255,.2);
-}
-
-.send {
-  min-width: 110px;
-  border: none;
-  border-radius: 12px;
-  padding: 0 16px;
-  background: linear-gradient(180deg, #0d68ff, #0b5cff);
-  color: #fff;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.send:active { transform: translateY(1px); }

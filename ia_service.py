@@ -48,7 +48,7 @@ def _chunk(text: str, n: int = 1600):
     for i in range(0, len(text), n):
         yield (i // n) + 1, text[i : i + n]
 
-# ------------------ SCOPE ------------------
+# ------------------ SCOPE (existante, conservée) ------------------
 def _scope() -> str:
     """
     Clé de stockage/lecture:
@@ -83,6 +83,51 @@ def _scope() -> str:
     ns = (ns or "guest").strip().lower()
     return ns or "guest"
 
+# ------------------ NOUVEAU: utilitaires scopes unifiés ------------------
+def _conv_and_ns():
+    """Retourne (conv_id or None, ns) détectés dans form/json/query/headers."""
+    conv = None
+    ns = None
+    ct = request.content_type or ""
+
+    if request.method in ("POST", "PUT", "PATCH"):
+        if "multipart/form-data" in ct:
+            conv = request.form.get("conv")
+            ns = request.form.get("ns")
+        elif "application/json" in ct:
+            j = request.get_json(silent=True) or {}
+            conv = j.get("conversationId") or j.get("conv")
+            ns = j.get("ns")
+
+    conv = conv or request.args.get("conv")
+    ns = ns or request.args.get("ns") or request.headers.get("X-Doc-NS")
+
+    conv = (str(conv).strip() if conv else None)
+    ns = (ns or "guest").strip().lower()
+    return conv, ns
+
+def _scopes_for_read():
+    """Ordre: conv::<id> si présent, puis ns. Dédupliqué."""
+    conv, ns = _conv_and_ns()
+    scopes = []
+    if conv:
+        scopes.append(f"conv::{conv}")
+    if ns:
+        scopes.append(ns)
+    # dédup en préservant l'ordre
+    return list(dict.fromkeys([s for s in scopes if s]))
+
+def _scopes_for_write():
+    """Écriture: si conv ET ns => écrit dans les deux ; sinon => ns (guest par défaut)."""
+    conv, ns = _conv_and_ns()
+    scopes = []
+    if conv:
+        scopes.append(f"conv::{conv}")
+    if ns:
+        scopes.append(ns)
+    scopes = list(dict.fromkeys([s for s in scopes if s]))
+    return scopes or ["guest"]
+
 # ------------------ HEALTH ------------------
 @app.get("/health")
 def health():
@@ -100,25 +145,35 @@ def envcheck():
 # ------------------ DOCS LIST ------------------
 @app.get("/docs")
 def list_docs():
-    scope = _scope()
-    docs = [{"name": d, "pages": len(chunks)} for d, chunks in DOCS.get(scope, {}).items()]
-    return jsonify({"ok": True, "ns": scope, "count": len(docs), "docs": docs})
+    scopes = _scopes_for_read()
+    seen = set()
+    out = []
+    for sc in scopes:
+        for d, chunks in DOCS.get(sc, {}).items():
+            if (sc, d) in seen:
+                continue
+            seen.add((sc, d))
+            out.append({"name": d, "pages": len(chunks), "scope": sc})
+    return jsonify({"ok": True, "scopes": scopes, "count": len(out), "docs": out})
 
 # ------------------ INGEST ------------------
 @app.post("/ingest")
 def ingest():
-    scope = _scope()
-    print(f"[ingest] scope={scope}")
+    targets = _scopes_for_write()
+    print(f"[ingest] write_scopes={targets}")
 
     # JSON (pages déjà extraites)
     if request.content_type and "application/json" in request.content_type:
         data = request.get_json() or {}
         name = data.get("name") or f"doc_{uuid.uuid4().hex[:6]}"
-        DOCS[scope][name].clear()
+        pages = []
         for p in data.get("pages", []):
             text = p.get("text", "")
-            DOCS[scope][name].append({"page": int(p.get("page", 1)), "text": text, "vec": embed(text)})
-        return jsonify({"ok": True, "ns": scope, "doc": name, "pages": len(DOCS[scope][name])})
+            pages.append({"page": int(p.get("page", 1)), "text": text, "vec": embed(text)})
+        for sc in targets:
+            DOCS[sc][name].clear()
+            DOCS[sc][name].extend(pages)
+        return jsonify({"ok": True, "scopes": targets, "doc": name, "pages": len(pages)})
 
     # FICHIER
     f = request.files.get("file")
@@ -133,11 +188,14 @@ def ingest():
         if not HAS_PDF:
             return jsonify({"error": "pypdf manquant (pip install pypdf)"}), 500
         reader = PdfReader(f.stream)
-        DOCS[scope][name].clear()
+        pages = []
         for i, page in enumerate(reader.pages, start=1):
             text = (page.extract_text() or "").strip()
-            DOCS[scope][name].append({"page": i, "text": text, "vec": embed(text)})
-        return jsonify({"ok": True, "ns": scope, "doc": name, "pages": len(DOCS[scope][name])})
+            pages.append({"page": i, "text": text, "vec": embed(text)})
+        for sc in targets:
+            DOCS[sc][name].clear()
+            DOCS[sc][name].extend(pages)
+        return jsonify({"ok": True, "scopes": targets, "doc": name, "pages": len(pages)})
 
     if lower.endswith(".csv"):
         content = f.read().decode(errors="ignore")
@@ -146,33 +204,39 @@ def ingest():
         rows = list(r)
         header = rows[0] if rows else []
         text = "\n".join([", ".join(row) for row in rows[:2000]])
-        DOCS[scope][name].clear()
+        pages = []
         for pageno, ch in _chunk(text):
-            DOCS[scope][name].append({"page": pageno, "text": ch, "vec": embed(ch)})
-        return jsonify({"ok": True, "ns": scope, "doc": name, "pages": len(DOCS[scope][name]), "columns": header})
+            pages.append({"page": pageno, "text": ch, "vec": embed(ch)})
+        for sc in targets:
+            DOCS[sc][name].clear()
+            DOCS[sc][name].extend(pages)
+        return jsonify({"ok": True, "scopes": targets, "doc": name, "pages": len(pages), "columns": header})
 
     # TXT / autres
     text = f.read().decode(errors="ignore")
-    DOCS[scope][name].clear()
+    pages = []
     for pageno, ch in _chunk(text):
-        DOCS[scope][name].append({"page": pageno, "text": ch, "vec": embed(ch)})
-    return jsonify({"ok": True, "ns": scope, "doc": name, "pages": len(DOCS[scope][name])})
+        pages.append({"page": pageno, "text": ch, "vec": embed(ch)})
+    for sc in targets:
+        DOCS[sc][name].clear()
+        DOCS[sc][name].extend(pages)
+    return jsonify({"ok": True, "scopes": targets, "doc": name, "pages": len(pages)})
 
 # ------------------ RECHERCHE SIMPLE ------------------
 @app.post("/search")
 def search():
     data = request.get_json() or {}
-    # privilégie conv si présent dans le body, sinon scope()
-    scope = f"conv::{data.get('conversationId')}" if data.get("conversationId") else _scope()
     q = (data.get("q") or "").strip()
     k = int(data.get("k") or 5)
     qv = embed(q)
 
+    scopes = _scopes_for_read()
     hits = []
-    for doc, chunks in DOCS.get(scope, {}).items():
-        for ch in chunks:
-            score = cosine(qv, ch["vec"])
-            hits.append({"doc": doc, "page": ch["page"], "excerpt": ch["text"][:800], "score": float(score)})
+    for sc in scopes:
+        for doc, chunks in DOCS.get(sc, {}).items():
+            for ch in chunks:
+                score = cosine(qv, ch["vec"])
+                hits.append({"scope": sc, "doc": doc, "page": ch["page"], "excerpt": ch["text"][:800], "score": float(score)})
     hits.sort(key=lambda x: x["score"], reverse=True)
     return jsonify(hits[:k])
 
@@ -193,7 +257,7 @@ def mcp_execute():
 
         # -------- GENERAL --------
         if action == "general_conversation":
-            scope = _scope()
+            scope = _scope()  # inchangé
             print(f"[mcp] action=general_conversation scope={scope} doc={params.get('doc')} docs={params.get('docs')}")
             if not MODEL:
                 return ai_not_configured()
@@ -202,67 +266,68 @@ def mcp_execute():
             return jsonify({"version": "1.0", "id": rid, "status": "success",
                             "data": {"reply": (resp.text or "").strip()}})
 
-        # -------- DOCQA SEARCH (optionnel) --------
+        # -------- DOCQA SEARCH (union conv+ns) --------
         if action == "docqa_search":
-            scope = _scope()
-            print(f"[mcp] action=docqa_search scope={scope}")
+            scopes = _scopes_for_read()
+            print(f"[mcp] action=docqa_search scopes={scopes}")
             q = (params.get("q") or "").strip()
             k = int(params.get("k") or 5)
             qv = embed(q)
             hits = []
-            for doc, chunks in DOCS.get(scope, {}).items():
-                for ch in chunks:
-                    score = cosine(qv, ch["vec"])
-                    hits.append({"doc": doc, "page": ch["page"], "excerpt": ch["text"][:800], "score": float(score)})
+            for sc in scopes:
+                for doc, chunks in DOCS.get(sc, {}).items():
+                    for ch in chunks:
+                        score = cosine(qv, ch["vec"])
+                        hits.append({"scope": sc, "doc": doc, "page": ch["page"], "excerpt": ch["text"][:800], "score": float(score)})
             hits.sort(key=lambda x: x["score"], reverse=True)
             reply = "Aucune correspondance." if not hits else "\n".join(
-                f"- {h['doc']} p.{h['page']} ({h['score']:.2f}): {h['excerpt'][:200]}…" for h in hits[:k]
+                f"- [{h['scope']}] {h['doc']} p.{h['page']} ({h['score']:.2f}): {h['excerpt'][:200]}…" for h in hits[:k]
             )
             return jsonify({"version": "1.0", "id": rid, "status": "success",
-                            "data": {"reply": reply, "citations": hits[:k], "ns": scope}})
+                            "data": {"reply": reply, "citations": hits[:k], "scopes": scopes}})
 
-        # -------- DOCQA ANSWER (RAG) --------
+        # -------- DOCQA ANSWER (RAG union conv+ns) --------
         if action == "docqa_answer":
-            scope = _scope()
-            print(f"[mcp] action=docqa_answer scope={scope} doc={params.get('doc')} docs={params.get('docs')}")
+            scopes = _scopes_for_read()
+            print(f"[mcp] action=docqa_answer scopes={scopes} doc={params.get('doc')} docs={params.get('docs')}")
             if not MODEL:
                 return ai_not_configured()
 
             q = (params.get("q") or "").strip()
             k = int(params.get("k") or 5)
 
-            # Filtrage explicite des fichiers du tour (doc/docs)
             only_doc = params.get("doc")
             only_docs = params.get("docs") or []
             allow = set([only_doc] if only_doc else []) | set(only_docs)
 
             qv = embed(q)
             hits = []
-            for doc, chunks in DOCS.get(scope, {}).items():
-                if allow and doc not in allow:
-                    continue
-                for ch in chunks:
-                    score = cosine(qv, ch["vec"])
-                    hits.append({"doc": doc, "page": ch["page"], "excerpt": ch["text"][:1200], "score": float(score)})
+            for sc in scopes:
+                for doc, chunks in DOCS.get(sc, {}).items():
+                    if allow and doc not in allow:
+                        continue
+                    for ch in chunks:
+                        score = cosine(qv, ch["vec"])
+                        hits.append({"scope": sc, "doc": doc, "page": ch["page"], "excerpt": ch["text"][:1200], "score": float(score)})
 
             hits.sort(key=lambda x: x["score"], reverse=True)
             top = hits[:k]
 
             if not top:
                 return jsonify({"version": "1.0", "id": rid, "status": "success",
-                                "data": {"reply": "NO_CONTEXT", "citations": [], "ns": scope}})
+                                "data": {"reply": "NO_CONTEXT", "citations": [], "scopes": scopes}})
 
-            ctx = "\n\n".join([f"[{h['doc']} p.{h['page']}] {h['excerpt']}" for h in top])
+            ctx = "\n\n".join([f"[{h['scope']}:{h['doc']} p.{h['page']}] {h['excerpt']}" for h in top])
             prompt = (
                 "Réponds strictement à partir du contexte.\n"
                 "Si l'information manque dans le contexte, dis-le franchement.\n\n"
                 f"Contexte:\n{ctx}\n\nQuestion: {q}\n"
-                "Réponse en français, concise, avec références [doc p.page] si utile."
+                "Réponse en français, concise, avec références [scope:doc p.page] si utile."
             )
             resp = MODEL.generate_content(prompt)
             out = (resp.text or "").strip()
             return jsonify({"version": "1.0", "id": rid, "status": "success",
-                            "data": {"reply": out, "citations": top, "ns": scope}})
+                            "data": {"reply": out, "citations": top, "scopes": scopes}})
 
         # -------- UNKNOWN --------
         return jsonify({"version": "1.0", "id": rid, "status": "error",

@@ -6,6 +6,6 @@ import java.util.List;
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class ChatResponse {
     private String reply;
-    private Long conversationId;      // id de la conversation côté Spring
-    private List<String> usedDocs;    // noms des documents vraiment utilisés par RAG
+    private Long conversationId;   // id Spring de la conversation
+    private List<String> usedDocs; // documents réellement utilisés (simple: ceux du tour)
 }

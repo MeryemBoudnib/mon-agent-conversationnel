@@ -2,7 +2,12 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
-export interface DocList { ok: boolean; scope: string; count: number; docs: {name:string; pages:number}[]; }
+export interface DocList {
+  ok: boolean;
+  scopes: string[];
+  count: number;
+  docs: { name: string; pages: number; scope: string }[];
+}
 
 @Injectable({ providedIn: 'root' })
 export class DocqaService {
