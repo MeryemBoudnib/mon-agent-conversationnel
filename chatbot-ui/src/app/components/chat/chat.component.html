@@ -1,35 +1,48 @@
+<!-- chat.component.html - Version finale avec le bouton "Search" et une meilleure icône de micro -->
+
 <div class="chat-root">
-  <!-- Messages -->
+  <!-- Messages (inchangé) -->
   <div class="messages">
     <div *ngFor="let m of messages" class="bubble" [class.me]="m.role==='user'">
       <div class="bubble-inner">
-
-        <!-- Assistant : rendu markdown ; User : texte brut -->
         <ng-container *ngIf="m.role==='assistant'; else plainText">
           <div class="bubble-text" [innerHTML]="asHtml(m.content)"></div>
         </ng-container>
         <ng-template #plainText>
           <div class="bubble-text" [innerText]="m.content"></div>
         </ng-template>
-
-        <!-- Fichiers joints de l’utilisateur -->
         <div class="chips" *ngIf="m.attachments?.length && m.role==='user'">
           <span class="chip file" *ngFor="let a of m.attachments" [title]="a.type">{{ a.name }}</span>
         </div>
-
-        <!-- Docs réellement utilisés (si renvoyés par l’API) -->
         <div class="chips used" *ngIf="m.usedDocs?.length">
           <span class="label">Docs :</span>
           <span class="chip used-chip" *ngFor="let d of m.usedDocs">{{ d }}</span>
         </div>
+        <div class="chips used" *ngIf="m.citations?.length">
+          <span class="label">Sources :</span>
+          <a class="chip link" *ngFor="let c of m.citations" (click)="open(c.url)" [title]="c.url">
+            {{ c.title || c.url }}
+          </a>
+        </div>
       </div>
     </div>
   </div>
+<!-- WELCOME OVERLAY (UI-only) -->
+<div *ngIf="showWelcomeOverlay" class="welcome-overlay">
+  <div class="welcome-card">
+    <div class="welcome-title">{{ welcomeText }}</div>
+    <div class="welcome-suggestions">
+      <button class="chip" *ngFor="let s of welcomeSuggestions" (click)="useSuggestion(s)">
+        {{ s }}
+      </button>
+    </div>
+  </div>
+</div>
 
   <!-- Barre composer -->
   <div class="composer">
     <div class="bar">
-      <div class="input-row with-mic">
+      <div class="input-row">
         <label class="attach" title="Joindre">
           <input type="file" multiple (change)="onPickFiles($event)" />
           <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
@@ -38,13 +51,25 @@
           </svg>
         </label>
 
-        <input [(ngModel)]="text" name="message" [placeholder]="recording ? 'Parlez… (écriture en direct)' : 'Écrire un message…'" />
+        <input [(ngModel)]="text" name="message"
+               [placeholder]="recording ? 'Parlez…' : 'Écrire un message…'" />
 
+        <!-- ✅ MODIFIÉ: Nouvelle icône pour le micro, plus claire -->
         <button type="button" class="mic" [class.rec]="recording" (click)="togglePress()" title="Démarrer/arrêter la dictée">
-          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
             <path d="M12 14a3 3 0 0 0 3-3V7a3 3 0 0 0-6 0v4a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V20H9v2h6v-2h-2v-2.08A7 7 0 0 0 19 11h-2z"/>
           </svg>
           <span *ngIf="recording" class="rec-dot" aria-hidden="true"></span>
+        </button>
+
+        <!-- ✅ MODIFIÉ: Icône planète + texte "Search" réintégré -->
+        <button type="button" class="web" [disabled]="webLoading" (click)="web()"
+                [title]="webLoading ? 'Recherche…' : 'Réponse web (avec sources)'">
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+            <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm7.9 9h-3.4a15.7 15.7 0 00-1.3-5.2A8.02 8.02 0 0119.9 11zM12 4c1.1 0 2.7 2.2 3.4 6H8.6C9.3 6.2 10.9 4 12 4zM4.1 11h3.4c.2-1.9.7-3.7 1.3-5.2A8.02 8.02 0 004.1 11zm0 2a8.02 8.02 0 004.7 5.2A15.7 15.7 0 017.5 13H4.1zm7.9 7c-1.1 0-2.7-2.2-3.4-6h6.8c-.7 3.8-2.3 6-3.4 6zm3.3-.8A8.02 8.02 0 0019.9 13h-3.4c-.2 1.9-.7 3.7-1.3 5.2z"/>
+          </svg>
+          <span>Search</span>
+          <span *ngIf="webLoading" class="spinner" aria-hidden="true"></span>
         </button>
 
         <button class="send" (click)="send()">Envoyer</button>

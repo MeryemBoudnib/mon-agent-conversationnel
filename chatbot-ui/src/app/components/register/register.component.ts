@@ -1,53 +1,69 @@
-import { Component } from '@angular/core';
+import { Component, ElementRef, AfterViewInit, OnDestroy, ViewChild } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { MatIconModule } from '@angular/material/icon';
-import { MatButtonModule } from '@angular/material/button';
-
 import { AuthService } from '../../auth/auth.service';
+
+// GSAP
+import { gsap } from 'gsap';
+import { TextPlugin } from 'gsap/TextPlugin';
+gsap.registerPlugin(TextPlugin);
 
 @Component({
   selector: 'app-register',
   standalone: true,
   templateUrl: './register.component.html',
   styleUrls: ['./register.component.css'],
-  imports: [CommonModule, FormsModule, RouterModule, MatIconModule, MatButtonModule]
+  imports: [CommonModule, FormsModule, RouterModule]
 })
-export class RegisterComponent {
+export class RegisterComponent implements AfterViewInit, OnDestroy {
   firstName = '';
   lastName  = '';
   email     = '';
   password  = '';
   loading   = false;
 
-  constructor(private authService: AuthService, private router: Router) {}
+  @ViewChild('typing', { static: true }) typing!: ElementRef<HTMLSpanElement>;
+  @ViewChild('cursor', { static: true }) cursor!: ElementRef<HTMLSpanElement>;
+  private tl?: gsap.core.Timeline;
 
-  register() {
+  constructor(private auth: AuthService, private router: Router) {}
+
+  ngAfterViewInit(): void {
+    const phrases = [
+      'rédiger un CV',
+      'planifier un voyage',
+      'préparer un exposé',
+      'coder un prototype',
+      'organiser un événement'
+    ];
+    const t = this.typing.nativeElement;
+    const c = this.cursor.nativeElement;
+
+    gsap.to(c, { opacity: .2, repeat: -1, yoyo: true, duration: .6 });
+
+    const tl = gsap.timeline({ repeat: -1, repeatDelay: .5 });
+    phrases.forEach(p => {
+      tl.to(t, { duration: 1.1, text: p, ease: 'none' }).to({}, { duration: 0.9 });
+    });
+    this.tl = tl;
+  }
+
+  ngOnDestroy(): void { this.tl?.kill(); }
+
+  register(): void {
     if (this.loading) return;
-
     const firstName = this.firstName.trim();
     const lastName  = this.lastName.trim();
     const email     = this.email.trim();
     const password  = this.password;
 
-    if (!firstName || !lastName || !email || !password) {
-      alert('Veuillez remplir tous les champs.');
-      return;
-    }
+    if (!firstName || !lastName || !email || !password) { alert('Veuillez remplir tous les champs.'); return; }
 
     this.loading = true;
-
-    this.authService.register({ firstName, lastName, email, password }).subscribe({
-      next: () => {
-        this.loading = false;
-        // On renvoie vers le login (tu peux auto-connecter si ton backend renvoie un token)
-        this.router.navigate(['/login']);
-      },
-      error: () => {
-        this.loading = false;
-        alert("Échec de l'inscription");
-      }
+    this.auth.register({ firstName, lastName, email, password }).subscribe({
+      next: () => { this.loading = false; this.router.navigate(['/login']); },
+      error: () => { this.loading = false; alert("Échec de l'inscription"); }
     });
   }
 }

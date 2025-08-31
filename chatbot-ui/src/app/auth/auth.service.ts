@@ -1,7 +1,7 @@
 // src/app/auth/auth.service.ts
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { map, Observable } from 'rxjs';
+import { map, Observable, Subject } from 'rxjs';
 import { extractRole, UserRole } from '../utils/jwt.util';
 
 export interface RegisterPayload {
@@ -16,6 +16,9 @@ export class AuthService {
   private baseUrl = 'http://localhost:8080/api/auth';
   private storageKey = 'access_token';
 
+  /** 🔔 Événement émis à chaque login/register/logout (dans le même onglet) */
+  public readonly authChanged$ = new Subject<void>();
+
   // caches optionnels
   private _role: UserRole | null = null;
   private _email: string | null = null;
@@ -25,7 +28,6 @@ export class AuthService {
     if (t) {
       this._role = extractRole(t);
       this._email = this.decodeEmailFromJwt(t);
-      console.debug('[AuthService] boot role =', this._role, 'email =', this._email);
     }
   }
 
@@ -34,14 +36,14 @@ export class AuthService {
     return localStorage.getItem(this.storageKey);
   }
 
-  /** Rôle dérivé du token */
+  /** Rôle dérivé du token (conservé pour compat) */
   get role(): UserRole | null {
     const t = this.token;
     this._role = t ? extractRole(t) : null;
     return this._role;
   }
 
-  /** 🔹 Email de l'utilisateur connecté (depuis JWT si possible) */
+  /** Email de l'utilisateur connecté (depuis JWT si possible) */
   getEmail(): string | null {
     if (this._email) return this._email;
     const t = this.token;
@@ -49,7 +51,7 @@ export class AuthService {
     return this._email;
   }
 
-  /** 🔹 Namespace DocQA = email ou 'guest' */
+  /** Namespace DocQA = email ou 'guest' */
   getNamespace(): string {
     return this.getEmail() || 'guest';
   }
@@ -70,7 +72,7 @@ export class AuthService {
         localStorage.setItem(this.storageKey, token);
         this._role = extractRole(token);
         this._email = this.decodeEmailFromJwt(token);
-        console.debug('[AuthService.login] role =', this._role, 'email =', this._email);
+        this.authChanged$.next();              // 🔔 prévenir l’app
         return { token, role: this._role };
       })
     );
@@ -86,6 +88,7 @@ export class AuthService {
           role = extractRole(token);
           this._role = role;
           this._email = this.decodeEmailFromJwt(token);
+          this.authChanged$.next();            // 🔔 prévenir l’app
         }
         return { token, role };
       })
@@ -96,6 +99,7 @@ export class AuthService {
     localStorage.removeItem(this.storageKey);
     this._role = null;
     this._email = null;
+    this.authChanged$.next();                  // 🔔 prévenir l’app
   }
 
   /** Décodage simple de l'email depuis le payload JWT (adapter les clés si besoin) */

@@ -1,11 +1,71 @@
 <ng-container *ngIf="isShellRoute(); else routeOnly">
   <mat-toolbar class="app-toolbar" color="primary">
-    <button mat-icon-button (click)="toggleSidebar()"><mat-icon>menu</mat-icon></button>
+    <button mat-icon-button (click)="toggleSidebar()" aria-label="Ouvrir le menu">
+      <mat-icon>menu</mat-icon>
+    </button>
+
     <span class="toolbar-title">Mon Agent Conversationnel</span>
     <span class="spacer"></span>
-    <button class="custom-logout-btn" (click)="logout()">
-      <mat-icon class="logout-icon">logout</mat-icon> Déconnexion
-    </button>
+
+    <!-- actions à droite : bouton Compte uniquement -->
+    <div class="toolbar-actions">
+      <button class="chip-btn account-btn" [matMenuTriggerFor]="accountMenu" aria-label="Compte">
+        <div class="avatar">
+          <mat-icon *ngIf="!avatarUrl">account_circle</mat-icon>
+          <img *ngIf="avatarUrl" [src]="avatarUrl" alt="avatar" />
+        </div>
+        <div class="whoami">
+          <span class="name">{{ displayName || 'Utilisateur' }}</span>
+          <span class="email">{{ email || 'guest' }}</span>
+        </div>
+        <mat-icon class="chip-chev">expand_more</mat-icon>
+      </button>
+
+      <mat-menu #accountMenu="matMenu" class="account-menu">
+        <!-- En-tête -->
+        <div class="account-header">
+          <div class="avatar sm">
+            <mat-icon *ngIf="!avatarUrl">account_circle</mat-icon>
+            <img *ngIf="avatarUrl" [src]="avatarUrl" alt="avatar" />
+          </div>
+          <div class="info">
+            <div class="name">{{ displayName || 'Utilisateur' }}</div>
+            <div class="email">{{ email || 'guest' }}</div>
+          </div>
+        </div>
+
+        <mat-divider></mat-divider>
+
+        <!-- Paramètres -->
+        <button mat-menu-item (click)="goToSettings()">
+          <mat-icon>settings</mat-icon>
+          <span>Paramètres</span>
+        </button>
+
+    <div class="menu-row">
+  <mat-icon class="menu-icon">
+    {{ getEffectiveMode()==='dark' ? 'dark_mode' : 'light_mode' }}
+  </mat-icon>
+  <div class="menu-label">
+    <strong>{{ getEffectiveMode()==='dark' ? 'Thème foncé' : 'Thème clair' }}</strong>
+  </div>
+  <mat-slide-toggle
+    class="theme-switch"
+    [checked]="getEffectiveMode()==='dark'"
+    (change)="onToggleDark($event.checked)">
+  </mat-slide-toggle>
+</div>
+
+
+
+        <mat-divider></mat-divider>
+
+        <button mat-menu-item (click)="logout()">
+          <mat-icon color="warn">logout</mat-icon>
+          <span>Déconnexion</span>
+        </button>
+      </mat-menu>
+    </div>
   </mat-toolbar>
 
   <mat-sidenav-container class="app-container">
@@ -22,6 +82,5 @@
 </ng-container>
 
 <ng-template #routeOnly>
-  <!-- /login, /register, /admin sans shell -->
   <router-outlet></router-outlet>
 </ng-template>

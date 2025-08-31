@@ -1,4 +1,4 @@
-# ia_service.py  — version combinée unique
+# ia_service.py  — version combinée unique (avec persistance des recherches web)
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import google.generativeai as genai
@@ -8,6 +8,10 @@ from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
+
+# ==== Recherche externe ====
+import requests
+from bs4 import BeautifulSoup
 
 load_dotenv()
 
@@ -34,6 +38,9 @@ CORS(app)  # autorise http://localhost:4200 etc.
 
 # ---------- Mémoire docs (RAG)
 DOCS: Dict[str, Dict[str, List[Dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
+
+# ---------- Journal côté serveur des recherches web (persisté en RAM)
+SEARCH_LOGS: Dict[str, List[Dict[str, Any]]] = defaultdict(list)  # clés: "conv::<id>" ou "<namespace>"
 
 # PDF optionnel
 try:
@@ -92,6 +99,23 @@ def _scopes_for_write():
     if ns: out.append(ns)
     out = list(dict.fromkeys([x for x in out if x]))
     return out or ["guest"]
+
+# ---------- Helpers journal web ----------
+def _log_scope_key() -> str:
+    conv, ns = _conv_and_ns()
+    if conv:
+        return f"conv::{conv}"
+    return (ns or "guest").strip().lower()
+
+def _append_search(role: str, content: str, citations: Optional[List[Dict[str, Any]]] = None):
+    item: Dict[str, Any] = {
+        "ts": datetime.utcnow().isoformat() + "Z",
+        "role": role,
+        "content": content or ""
+    }
+    if citations:
+        item["citations"] = citations
+    SEARCH_LOGS[_log_scope_key()].append(item)
 
 # ---------- Dates
 def _parse_dt(s: Optional[str], default: datetime) -> datetime:
@@ -341,7 +365,7 @@ def search():
     hits.sort(key=lambda x:x["score"], reverse=True)
     return jsonify(hits[:k])
 
-# ---------- Analytics REST
+# ---------- Analytics REST (inchangé, gardé)
 @app.get("/analytics")
 def analytics():
     dt_from, dt_to = _date_range_from_request()
@@ -523,7 +547,7 @@ def analytics_debug_text_columns():
         "samples": [s[0][:160] for s in samples]
     })
 
-# ---------- METRICS (latence)
+# ---------- METRICS (latence) — inchangé
 def _ensure_latency_table():
     with ENGINE.begin() as conn:
         conn.execute(text("""
@@ -736,42 +760,58 @@ def metrics_forecast_risk():
                     "slo_p90": slo, "overall_max_prob": round(maxprob,3),
                     "alert": alert, "points": out})
 
-# ---------- ADMIN
-@app.route("/admin/users", methods=["GET", "OPTIONS"])
-def admin_users():
-    if request.method == "OPTIONS":
-        return ("", 204)
-    ut = SCHEMA_MAP.get("users_tbl")
-    uc = SCHEMA_MAP.get("user_created_col")
-    if not ut or not uc:
-        return jsonify([])
-    def pick_col(cands, existing):
-        for c in cands:
-            if c in existing:
-                return c
-        return None
-    with ENGINE.connect() as conn:
-        cols = [c for c, _ in _cols_with_types(conn, ut)]
-        existing = set(cols)
-        id_col   = pick_col(["id","user_id","uid"], existing)
-        name_col = pick_col(["email","username","name","full_name","login"], existing)
-        select_parts = []
-        if id_col:   select_parts.append(f'{_safe_ident(id_col)} AS id')
-        if name_col: select_parts.append(f'{_safe_ident(name_col)} AS name')
-        select_parts.append(f'{_safe_ident(uc)} AS created_at')
-        rows = conn.execute(text(f"""
-            SELECT {", ".join(select_parts)}
-            FROM "{ut}" ORDER BY {_safe_ident(uc)} DESC
-            LIMIT 100
-        """)).mappings().all()
-    out=[]
-    for r in rows:
-        out.append({
-            "id":      r.get("id"),
-            "name":    r.get("name"),
-            "created": (r.get("created_at").isoformat()+"Z") if r.get("created_at") else None
-        })
-    return jsonify(out)
+# ===== Utilitaire de recherche externe (SERP/API/HTML) =====
+def _search_web(query: str, k: int = 5) -> List[Dict[str, str]]:
+    provider = (os.getenv("SEARCH_PROVIDER") or "ddg").strip().lower()
+    out: List[Dict[str, str]] = []
+    try:
+        # SerpAPI
+        if provider == "serpapi" and os.getenv("SERPAPI_KEY"):
+            r = requests.get("https://serpapi.com/search.json", params={
+                "q": query, "engine": "google", "num": k, "hl": "fr", "api_key": os.getenv("SERPAPI_KEY")
+            }, timeout=12)
+            r.raise_for_status()
+            data = r.json()
+            for item in (data.get("organic_results") or [])[:k]:
+                out.append({"title": item.get("title",""), "url": item.get("link",""), "snippet": item.get("snippet","")})
+            return out
+        # Bing V7
+        if provider == "bing" and os.getenv("BING_V7_KEY"):
+            r = requests.get("https://api.bing.microsoft.com/v7.0/search",
+                             headers={"Ocp-Apim-Subscription-Key": os.getenv("BING_V7_KEY")},
+                             params={"q": query, "count": k, "mkt": "fr-FR"}, timeout=12)
+            r.raise_for_status()
+            data = r.json()
+            for item in (data.get("webPages", {}).get("value") or [])[:k]:
+                out.append({"title": item.get("name",""), "url": item.get("url",""), "snippet": item.get("snippet","")})
+            return out
+        # Google CSE
+        if provider == "google_cse" and os.getenv("GOOGLE_API_KEY") and os.getenv("GOOGLE_CSE_ID"):
+            r = requests.get("https://www.googleapis.com/customsearch/v1", params={
+                "key": os.getenv("GOOGLE_API_KEY"),
+                "cx": os.getenv("GOOGLE_CSE_ID"),
+                "q": query, "num": min(k,10), "hl": "fr"
+            }, timeout=12)
+            r.raise_for_status()
+            data = r.json()
+            for item in (data.get("items") or [])[:k]:
+                out.append({"title": item.get("title",""), "url": item.get("link",""), "snippet": item.get("snippet","")})
+            return out
+        # Fallback DuckDuckGo HTML
+        r = requests.post("https://html.duckduckgo.com/html/",
+                          data={"q": query}, headers={"User-Agent": "Mozilla/5.0"}, timeout=12)
+        r.raise_for_status()
+        soup = BeautifulSoup(r.text, "html.parser")
+        for a in soup.select(".result__a")[:k]:
+            title = a.get_text(strip=True)
+            url = a.get("href") or ""
+            sn_el = a.find_parent(class_="result__title")
+            desc_el = sn_el.find_next_sibling(class_="result__snippet") if sn_el else None
+            snippet = desc_el.get_text(" ", strip=True) if desc_el else ""
+            out.append({"title": title, "url": url, "snippet": snippet})
+    except Exception as e:
+        print("search error:", e)
+    return out
 
 # ---------- MCP (UN SEUL handler)
 @app.post("/mcp/execute")
@@ -785,6 +825,8 @@ def mcp_execute():
         action = data.get("action")
         params = (data.get("parameters") or {}) if isinstance(data.get("parameters"), dict) else {}
         rid = data.get("id", uuid.uuid4().hex)
+
+        app.logger.info(f"[MCP] action={action} params_keys={list((data.get('parameters') or {}).keys())}")
 
         def ok(payload):
             return jsonify({"version":"1.0","id":rid,"status":"success","data":payload})
@@ -820,6 +862,48 @@ def mcp_execute():
             )
             return ok({"reply": reply, "citations": hits[:k]})
 
+        # ===== Recherche externe =====
+        if action in ("external_search", "web_search"):
+            q = (params.get("query") or params.get("q") or "").strip()
+            k = int(params.get("k") or 5)
+            if not q:
+                return err("Paramètre 'query' (ou 'q') manquant.")
+            results = _search_web(q, k)
+            # log: question utilisateur seulement
+            _append_search("user", q, None)
+            return ok({"results": results})
+
+        if action in ("external_answer", "web_answer"):
+            q = (params.get("query") or params.get("q") or "").strip()
+            k = int(params.get("k") or 5)
+            if not q:
+                return err("Paramètre 'query' (ou 'q') manquant.")
+            results = _search_web(q, k)
+            if not MODEL:
+                text_ans = "IA non configurée. Voici des sources potentielles :\n" + \
+                           "\n".join([f"- {r['title']} — {r['url']}" for r in results])
+                # log user + assistant
+                _append_search("user", q, None)
+                _append_search("assistant", text_ans, results)
+                return ok({"reply": text_ans, "citations": results})
+            ctx = "\n\n".join([f"[{i}] {r['title']} — {r['snippet']}\nURL:{r['url']}"
+                               for i, r in enumerate(results, start=1)])
+            prompt = (
+                "Réponds en français de façon factuelle et concise en te basant STRICTEMENT "
+                "sur les extraits fournis et en citant les sources au format [n].\n\n"
+                f"Contexte:\n{ctx}\n\nQuestion: {q}\n"
+                "Termine par une section 'Sources' listant [n] Titre — URL."
+            )
+            try:
+                resp = MODEL.generate_content(prompt)
+                out = (resp.text or "").strip()
+            except Exception:
+                out = "Erreur lors de la génération de la réponse."
+            # log user + assistant
+            _append_search("user", q, None)
+            _append_search("assistant", out, results)
+            return ok({"reply": out, "citations": results})
+
         # ---- DOCQA ANSWER (RAG)
         if action == "docqa_answer":
             if not MODEL:
@@ -853,7 +937,7 @@ def mcp_execute():
             out = (resp.text or "").strip()
             return ok({"reply": out, "citations": top})
 
-        # ---- ANALYTICS pour le front
+        # ---- Analytics MCP (inchangé)
         if action == "analytics_messages_per_day":
             dt_from, dt_to = _window_from_params(params)
             mt, mc = _require("messages_tbl"), _require("msg_created_col")
@@ -881,18 +965,19 @@ def mcp_execute():
             else:
                 mt, mc = _require("messages_tbl"), _require("msg_created_col")
                 with ENGINE.connect() as conn:
-                    val = conn.execute(text(f"""
+                    q = f"""
                         WITH mm AS (
-                          SELECT {_safe_ident('conversation_id')} AS cid,
-                                 MIN(m.{_safe_ident(mc)}) AS first_ts,
-                                 MAX(m.{_safe_ident(mc)}) AS last_ts
-                          FROM "{mt}" m
-                          WHERE m.{_safe_ident(mc)} BETWEEN :f AND :t
-                          GROUP BY {_safe_ident('conversation_id')}
+                          SELECT { _safe_ident('conversation_id') } AS cid,
+                                 MIN(m.{ _safe_ident(mc) }) AS first_ts,
+                                 MAX(m.{ _safe_ident(mc) }) AS last_ts
+                          FROM "{ mt }" m
+                          WHERE m.{ _safe_ident(mc) } BETWEEN :f AND :t
+                          GROUP BY { _safe_ident('conversation_id') }
                         )
                         SELECT AVG(EXTRACT(EPOCH FROM (last_ts - first_ts))/60.0)
                         FROM mm WHERE last_ts >= first_ts
-                    """), {"f":dt_from,"t":dt_to}).scalar() or 0.0
+                    """
+                    val = conn.execute(text(q), {"f": dt_from, "t": dt_to}).scalar() or 0.0
             return ok({"key":"avgMinutes","value":float(val)})
 
         if action == "analytics_heatmap":
@@ -925,7 +1010,39 @@ def mcp_execute():
         return err(f"Action inconnue: {action}", 400)
 
     except Exception as e:
+        app.logger.exception("MCP execute failed")
         return jsonify({"version":"1.0","id":uuid.uuid4().hex,"status":"error","error":str(e)}),500
+
+# ---------- Web log API (persistance des recherches web)
+@app.get("/web-log")
+def web_log_get():
+    conv, ns = _conv_and_ns()
+    key = f"conv::{conv}" if conv else (ns or "guest").strip().lower()
+    return jsonify(SEARCH_LOGS.get(key, []))
+
+@app.post("/web-log/migrate")
+def web_log_migrate():
+    data = request.get_json(silent=True) or {}
+    to_conv = str(data.get("toConv") or "").strip()
+    if not to_conv:
+        return jsonify({"ok": False, "error": "toConv manquant"}), 400
+    _, ns = _conv_and_ns()
+    src = (ns or "guest").strip().lower()
+    dst = f"conv::{to_conv}"
+    if not SEARCH_LOGS.get(src):
+        return jsonify({"ok": True, "migrated": 0})
+    SEARCH_LOGS[dst].extend(SEARCH_LOGS[src])
+    moved = len(SEARCH_LOGS[src])
+    SEARCH_LOGS[src].clear()
+    return jsonify({"ok": True, "migrated": moved, "to": dst})
+
+@app.delete("/web-log")
+def web_log_clear():
+    conv, ns = _conv_and_ns()
+    key = f"conv::{conv}" if conv else (ns or "guest").strip().lower()
+    removed = len(SEARCH_LOGS.get(key, []))
+    SEARCH_LOGS[key].clear()
+    return jsonify({"ok": True, "cleared": removed})
 
 # ---------- Run
 if __name__ == "__main__":

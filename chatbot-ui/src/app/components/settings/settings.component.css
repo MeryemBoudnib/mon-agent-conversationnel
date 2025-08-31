@@ -1,155 +1,85 @@
-/* CHEMIN : src/app/components/settings/settings.component.css (VERSION FINALE AUTONOME) */
+/* src/app/components/settings/settings.component.css - Premium */
 
-:host {
-  display: block;
-  height: 100%;
-  width: 100%;
-  position: relative;
-}
+:host { display: block; height: 100%; width: 100%; }
 
-/* Wrapper principal avec son propre fond clair */
 .settings-wrapper {
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  overflow-y: auto;
-  background: linear-gradient(to bottom, #c5c9d3ff, #1e293b);
-  padding: 2.5rem;
-  box-sizing: border-box;
+  position: absolute; top:0; left:0; right:0; bottom:0;
+  overflow-y: auto; padding: 2.5rem; background: transparent;
 }
+.settings-container { width:100%; max-width:800px; margin:0 auto; }
 
-/* Conteneur principal */
-.settings-container {
-  width: 100%;
-  max-width: 800px;
-  margin: 0 auto;
-}
+/* Header */
+.settings-header { text-align:center; margin-bottom:3rem; color:var(--text-primary); }
+.settings-title { font-size:2.4rem; font-weight:700; margin:0; }
+.settings-subtitle { font-size:1.1rem; color:var(--text-muted); }
 
-/* En-tête */
-.settings-header {
-  text-align: center;
-  margin-bottom: 3rem;
-  color: #2c3e50; /* Texte bleu marine foncé */
-}
-.header-content {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  margin-bottom: 0.75rem;
-}
-.settings-title {
-  font-size: 2.5rem;
-  font-weight: 600;
-  margin: 0;
-}
-.settings-icon {
-  font-size: 2.5rem;
-  width: 2.5rem;
-  height: 2.5rem;
-}
-.settings-subtitle {
-  font-size: 1.1rem;
-  color: #6c757d; /* Texte gris moyen */
-  margin: 0;
-  font-weight: 400;
-}
-
-/* Contenu (cartes) */
-.settings-content {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-}
-
-/* Chaque section (carte) */
+/* Cartes */
 .settings-section {
-  background: #ffffff; /* Fond blanc pur */
-  border-radius: 16px;
+  background: var(--light-card-bg);
+  border-radius: 18px;
   padding: 2rem;
-  border: 1px solid #e9ecef; /* Bordure grise très légère */
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s ease;
-}
-.settings-section:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-}
-
-/* En-tête de chaque section */
-.section-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
+  border: 1px solid var(--light-card-border);
+  box-shadow: var(--shadow-s);
   margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #a2a8ad;
+  transition: transform .2s, box-shadow .2s;
 }
-.section-header h2 {
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 500;
-  color: #2c3e50;
-}
-.section-icon {
-  color: #667eea; /* Couleur d'accent pour les icônes */
-  font-size: 1.5rem;
-}
+.settings-section:hover { transform: translateY(-2px); box-shadow: var(--shadow-m); }
 
-/* Grille de formulaire */
+.section-header {
+  display:flex; align-items:center; gap:1rem; margin-bottom:2rem;
+  padding-bottom:1rem; border-bottom:1px solid var(--light-card-border);
+}
+.section-header h2{ margin:0; font-size:1.25rem; font-weight:600; color:var(--light-card-header); }
+.section-icon{ color:var(--light-card-icon); font-size:1.6rem; }
+
+/* Grille form */
 .form-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.5rem;
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+  gap:1.5rem 1rem;
 }
-.full-width {
-  grid-column: 1 / -1;
+.full-width{ grid-column:1 / -1; }
+
+.form-group{ position:relative; padding-top:.75rem; }
+.form-label {
+  position:absolute; top:0; left:12px; transform:translateY(-50%);
+  background:var(--light-card-bg); padding:0 4px; font-size:.8rem; font-weight:600;
+  color:var(--light-form-label);
+}
+.form-input {
+  width:100%; height:50px;
+  background:var(--light-form-field-bg);
+  border:1px solid var(--light-card-border);
+  border-radius:10px; padding:0 16px;
+  font-size:.9rem; color:var(--light-card-text);
+  transition:border .2s, box-shadow .2s;
+}
+.form-input:focus{
+  border-color:var(--link-color);
+  box-shadow:0 0 0 3px rgba(244, 246, 248, 0.945);
+  outline:none;
 }
 
-/* Conteneur des boutons d'action */
-.actions-container {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 2rem;
-}
-
-/* Style de base des boutons */
+/* Boutons */
+.actions-container{ display:flex; justify-content:flex-end; gap:1rem; margin-top:2rem; }
 .action-btn {
-  padding: 0.75rem 1.75rem;
-  border-radius: 8px;
-  font-weight: 500;
-  text-transform: none;
-  font-size: 0.9rem;
-  transition: all 0.2s ease;
+  padding:.8rem 1.6rem; border-radius:12px; font-weight:600; font-size:.92rem;
+  border:none; cursor:pointer; transition:transform .2s, box-shadow .2s, background-color .2s;
 }
+.action-btn:hover{ transform:translateY(-1px); box-shadow: var(--shadow-s); }
 
-/* Bouton "Enregistrer" */
-.save-btn {
-  background-color: #667eea;
-  color: #51528f !important;
-  border: none;
+/* ✅ "Enregistrer" — totalement indépendant de la sidebar */
+.save-btn{
+  background: var(--settings-save-bg);
+  color: var(--settings-save-text) !important;
+  border: 1px solid var(--settings-save-border);
 }
-.save-btn:hover {
-  background-color: #d4d5df;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 15px rgba(220, 221, 228, 0.4);
-}
+.save-btn:hover{ background: var(--settings-save-bg-hover); }
 
-/* Bouton "Annuler" */
-.cancel-btn {
-  background-color: #da4343;
-  color: #f5ecec !important;
-  border: 1px solid #ced4da;
+.cancel-btn{
+  background: var(--settings-cancel-bg);
+  color: var(--settings-cancel-text) !important;
+  border: 1px solid var(--settings-cancel-border);
 }
+.cancel-btn:hover{ background: var(--settings-cancel-bg-hover); }
 
-
-/* Responsive */
-@media (max-width: 768px) {
-  .settings-wrapper { padding: 1.5rem; }
-  .settings-container { margin-top: 0; }
-  .settings-title { font-size: 2rem; }
-  .settings-section { padding: 1.5rem; }
-  .form-grid { grid-template-columns: 1fr; }
-  .actions-container { flex-direction: column; gap: 0.75rem; }
-  .action-btn { width: 100%; }
-}

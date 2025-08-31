@@ -1,80 +1,74 @@
-<div class="auth-container">
-  <div class="auth-card">
-    <div class="brand">
-      <span class="material-icons">person_add</span>
-      <h1>Créer un compte</h1>
+<div class="auth-page">
+  <div class="auth-layout">
+    <!-- H E R O -->
+    <section class="hero">
+      <div class="hero-inner">
+        <h2 class="hero-kicker">Rejoindre la plateforme</h2>
+
+        <div class="hero-typing">
+          <span class="static">Aide-moi à&nbsp;</span>
+          <span #typing class="typing"></span>
+          <span #cursor class="cursor">•</span>
+        </div>
+
+        <p class="hero-sub">
+          Brainstorm, résume des documents, planifie des voyages… tout en un.
+        </p>
+      </div>
+    </section>
+
+    <!-- C A R D -->
+    <section class="auth-card">
+      <div class="brand">
+        <span class="material-icons">person_add</span>
+      </div>
+      <h1 class="title">Créer un compte</h1>
       <p class="subtitle">Rejoignez la plateforme</p>
-    </div>
 
-    <form (ngSubmit)="register()" #regForm="ngForm" novalidate>
-      <div class="grid-2">
-        <div class="form-field">
-          <label for="firstName">Prénom</label>
-          <div class="input">
-            <span class="material-icons">badge</span>
-            <input
-              id="firstName"
-              name="firstName"
-              [(ngModel)]="firstName"
-              required
-              placeholder="Votre prénom" />
+      <form (ngSubmit)="register()" autocomplete="on">
+        <div class="grid-2">
+          <div class="form-field">
+            <label>Prénom</label>
+            <div class="input">
+              <span class="material-icons">badge</span>
+              <input type="text" [(ngModel)]="firstName" name="firstName" placeholder="Votre prénom" required />
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label>Nom</label>
+            <div class="input">
+              <span class="material-icons">badge</span>
+              <input type="text" [(ngModel)]="lastName" name="lastName" placeholder="Votre nom" required />
+            </div>
           </div>
         </div>
 
         <div class="form-field">
-          <label for="lastName">Nom</label>
+          <label>Email</label>
           <div class="input">
-            <span class="material-icons">badge</span>
-            <input
-              id="lastName"
-              name="lastName"
-              [(ngModel)]="lastName"
-              required
-              placeholder="Votre nom" />
+            <span class="material-icons">mail</span>
+            <input type="email" [(ngModel)]="email" name="email" placeholder="vous@exemple.com" required />
           </div>
         </div>
-      </div>
 
-      <div class="form-field">
-        <label for="email">Email</label>
-        <div class="input">
-          <span class="material-icons">mail</span>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            [(ngModel)]="email"
-            required
-            autocomplete="email"
-            placeholder="vous@exemple.com" />
+        <div class="form-field">
+          <label>Mot de passe</label>
+          <div class="input">
+            <span class="material-icons">lock</span>
+            <input type="password" [(ngModel)]="password" name="password" placeholder="Créez un mot de passe" required />
+          </div>
         </div>
-      </div>
 
-      <div class="form-field">
-        <label for="password">Mot de passe</label>
-        <div class="input">
-          <span class="material-icons">lock</span>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            [(ngModel)]="password"
-            required
-            minlength="6"
-            autocomplete="new-password"
-            placeholder="Créez un mot de passe" />
-        </div>
-      </div>
+        <button class="btn primary" [disabled]="loading">
+          <span class="material-icons">person_add</span>
+          <span>S’inscrire</span>
+        </button>
+      </form>
 
-      <button class="btn primary" type="submit" [disabled]="regForm.invalid">
-        <span class="material-icons">how_to_reg</span>
-        S’inscrire
-      </button>
-
-      <div class="alt-action">
-        Déjà inscrit ?
-        <a routerLink="/login">Se connecter</a>
-      </div>
-    </form>
+      <p class="alt-action">
+        Déjà inscrit ? <a routerLink="/login">Se connecter</a>
+      </p>
+    </section>
   </div>
 </div>

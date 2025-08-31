@@ -1,15 +1,12 @@
-<!-- CHEMIN : src/app/sidebar/sidebar/sidebar.component.html -->
+<!-- src/app/sidebar/sidebar/sidebar.component.html - Version corrigée -->
 
 <nav class="sidebar">
 
   <div class="top-controls">
-    <!-- ✅ CORRECTION : On a supprimé "mat-flat-button" pour éviter les conflits de style -->
     <button class="top-btn new-conv" (click)="newConversation()">
       <mat-icon>add</mat-icon>
       <span *ngIf="isExpanded">Nouvelle conv.</span>
     </button>
-
-    <!-- On garde "mat-stroked-button" ici car notre style s'y adapte bien -->
     <button mat-stroked-button class="top-btn delete-all" (click)="deleteAllConversations()">
       <mat-icon>delete_sweep</mat-icon>
       <span *ngIf="isExpanded">Tout supprimer</span>
@@ -40,13 +37,8 @@
     </li>
   </ul>
 
+  <!-- ✅ MODIFIÉ: Structure correcte restaurée -->
   <div class="bottom-group">
-    <!-- ✅ CORRECTION : On a aussi supprimé "mat-flat-button" ici pour la cohérence -->
- <button class="settings-btn" routerLink="/settings">
-  <mat-icon>settings</mat-icon>
-  Paramètres
-</button>
-
-
+  
   </div>
 </nav>

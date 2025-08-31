@@ -1,121 +1,112 @@
-/* CHEMIN : src/app/sidebar/sidebar/sidebar.component.css (VERSION FINALE SANS HOVER) */
+/* src/app/sidebar/sidebar/sidebar.component.css - Correction finale et définitive */
 
 /* ─── Conteneur principal ─── */
 .sidebar {
   display: flex;
   flex-direction: column;
-  background: var(--cgpt-toolbar-bg, linear-gradient(to bottom, #30353f, #404e68));
-  color: var(--cgpt-text-primary, #e5e5e5);
+  background: var(--panel-bg-gradient);
+  color: var(--text-primary);
   height: 100%;
   width: 100%;
-  overflow: hidden;
-  position: relative;
-  border-right: 1px solid rgba(0, 0, 0, 0.2);
+  border-right: 1px solid rgba(0, 0, 0, 0.3);
 }
 
-/* ─── Section des boutons du haut ─── */
-.top-controls {
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-/* Style de base pour les boutons principaux */
+/* ─── Boutons du haut ─── */
+.top-controls { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
 .top-btn {
+  display: flex; justify-content: flex-start; align-items: center; gap: 12px;
+  width: 100%; padding: 10px 16px; border-radius: 8px; font-weight: 500;
+  border: 1px solid transparent; cursor: pointer;
+}
+.top-btn mat-icon { font-size: 20px; width: 20px; height: 20px; }
+
+/* Bouton "Nouvelle conv." — totalement indépendant */
+.new-conv {
+  background-color: var(--sidebar-newconv-bg);
+  color: var(--sidebar-newconv-text) !important;
+  border: 1px solid var(--sidebar-newconv-border);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  transition: background-color .2s ease, transform .2s ease, box-shadow .2s ease;
+}
+.new-conv:hover {
+  background-color: var(--sidebar-newconv-bg-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0,0,0,.24);
+}
+.new-conv mat-icon { color: var(--sidebar-newconv-icon) !important; }
+
+/* Bouton "Tout supprimer" */
+.delete-all {
+  background-color: var(--danger-bg);
+  color: var(--danger-fg) !important;
+  border-color: var(--danger-border);
+}
+.delete-all mat-icon { color: var(--danger-fg); }
+
+/* ─── Liste des conversations ─── */
+mat-divider { border-color: rgba(255, 255, 255, 0.1); margin: 0 16px; }
+.section-title {
+  font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+  color: var(--text-muted); opacity: 0.7; padding: 24px 16px 8px; margin: 0;
+}
+.conv-list { flex: 1; overflow-y: auto; padding: 0 8px; margin: 0; list-style: none; }
+
+.conv-item {
+  display: flex; align-items: center; gap: 12px; padding: 8px 12px;
+  margin-bottom: 4px; cursor: pointer; border-radius: 8px; position: relative;
+  transition: background-color 0.2s ease;
+}
+.conv-item:not(.active):hover { background-color: rgba(255, 255, 255, 0.05); }
+.conv-item.active {
+  background-color: var(--panel-border);
+  color: var(--text-secondary) !important;
+}
+.conv-item mat-icon { color: var(--text-muted); font-size: 20px; }
+.conv-item.active mat-icon { color: var(--text-secondary); }
+.conv-item span {
+  flex: 1; font-weight: 500; font-size: 0.9rem; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; color: var(--text-primary);
+}
+.conv-item.active span { color: var(--text-secondary); }
+
+.delete-btn {
+  background-color: transparent; color: var(--text-muted); position: absolute;
+  right: 8px; opacity: 0; transition: opacity 0.2s ease;
+}
+.conv-item:hover .delete-btn { opacity: 1; }
+
+/* ─── Groupe du bas ─── */
+.bottom-group { 
+  margin-top: auto; 
+  padding: 16px; 
+  border-top: 1px solid rgba(255, 255, 255, 0.1); 
+}
+
+/* ✅ Bouton "Paramètres" (indépendant) */
+.settings-btn {
   display: flex;
-  justify-content: flex-start;
   align-items: center;
-  gap: 12px;
+  justify-content: flex-start;
+  gap: 0 !important;
   width: 100%;
   padding: 10px 16px;
   border-radius: 8px;
   font-weight: 500;
-  text-transform: none;
-  border: 1px solid transparent;
+  font-size: 0.9rem;
   cursor: pointer;
+  background-color: var(--settings-btn-solo-bg);
+  color: var(--settings-btn-solo-text) !important;
+  border: 1px solid var(--settings-btn-solo-border);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  transition: background-color .2s ease, transform .2s ease, box-shadow .2s ease;
 }
-.top-btn mat-icon { font-size: 20px; width: 20px; height: 20px; }
-
-/* Style par défaut pour "Nouvelle conv." */
-.new-conv {
-  background-color: var(--cgpt-accent-start, #424e6b);
-  color: #ffffff !important;
-  border-color: var(--cgpt-accent-end, #505d81);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-}
-.new-conv mat-icon {
-  color: #ffffff;
+.settings-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,.15); }
+.settings-btn mat-icon { 
+  color: var(--settings-btn-solo-icon) !important;
+  margin-right: 12px;
 }
 
-/* Style pour "Tout supprimer" */
-.delete-all {
-  background-color: rgba(239, 68, 68, 0.1);
-  color: #fca5a5 !important;
-  border-color: rgba(239, 68, 68, 0.3);
-}
-.delete-all mat-icon { color: #fca5a5; }
-
-/* ─── Liste des conversations ─── */
-mat-divider {
-  border-color: rgba(255, 255, 255, 0.1);
-  margin: 0 16px;
-}
-.section-title {
-  font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
-  letter-spacing: 0.05em; color: #8b949e; padding: 24px 16px 8px; margin: 0;
-}
-.conv-list {
-  flex: 1; overflow-y: auto; padding: 0 8px; margin: 0; list-style: none;
-}
-
-.conv-item {
-  display: flex; align-items: center; gap: 12px; padding: 8px 12px;
-  margin-bottom: 4px; cursor: pointer; border-radius: 6px; position: relative;
-}
-/* Pas d'effet de survol sur les items non actifs */
-.conv-item.active {
-  background-color: var(--cgpt-accent-end, #505d81);
-  color: #ffffff !important;
-}
-.conv-item mat-icon { color: #8b949e; font-size: 20px; }
-.conv-item.active mat-icon { color: #ffffff; }
-.conv-item span {
-  flex: 1; font-weight: 500; font-size: 0.9rem; white-space: nowrap;
-  overflow: hidden; text-overflow: ellipsis; color: #c9d1d9;
-}
-.conv-item.active span { color: #ffffff; }
-
-.delete-btn {
-  background-color: transparent; color: #8b949e; position: absolute;
-  right: 8px; opacity: 0; transition: opacity 0.2s ease;
-}
-.conv-item:hover .delete-btn {
-  opacity: 1; /* On garde l'apparition de la poubelle au survol */
-}
-
-/* ─── Groupe du bas (“Paramètres”) ─── */
-.bottom-group {
-  margin-top: auto;
-  padding: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.settings-btn {
-  display: flex; justify-content: flex-start; width: 100%; gap: 12px;
-  padding: 8px 12px; border-radius: 6px; font-weight: 500;
-  font-size: 0.9rem; text-transform: none;
-  background-color: var(--cgpt-accent-start, #62656e);
-  color: #ffffff !important;
-  border: 1px solid var(--cgpt-accent-end, #505d81);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-  cursor: pointer;
-}
-.settings-btn mat-icon {
-  color: #ffffff;
-}
-
-/* Scrollbar personnalisée */
+/* Scrollbar */
 .conv-list::-webkit-scrollbar { width: 6px; }
 .conv-list::-webkit-scrollbar-track { background: transparent; }
-.conv-list::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+.conv-list::-webkit-scrollbar-thumb { background: var(--panel-border); border-radius: 3px; }

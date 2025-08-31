@@ -1,51 +1,102 @@
-:host{
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.app-toolbar {
+  background: var(--cgpt-toolbar-bg, linear-gradient(180deg,#5c78a3,#4c5f7e));
+  backdrop-filter: saturate(1.2) blur(6px);
+  box-shadow: 0 6px 16px rgba(10,14,33,.22), inset 0 -1px 0 rgba(255,255,255,.06);
+  min-height: 56px;
+  transition: var(--theme-transition);
+  padding: 0 12px;
+}
+
+
+.app-container { flex: 1 1 auto; overflow: hidden; }
+.app-content { display: flex; flex-direction: column; min-height: 0; }
+.main { flex: 1 1 auto; display: flex; flex-direction: column; overflow: hidden; }
+
+/* actions alignées à droite */
+.toolbar-actions{
   display:flex;
-  flex-direction:column;
-  height:100vh;          /* plein écran */
+  align-items:center;
+  gap:10px;
 }
 
-/* Toolbar */
-.app-toolbar{
-  background:var(--cgpt-toolbar-bg);
-  flex-shrink:0;
-  box-shadow:0 2px 4px rgba(0,0,0,.2);
-  z-index:2;
-}
-.toolbar-title{ margin-left:8px; font-size:1.25rem; font-weight:500; }
-.spacer{ flex:1; }
+/* style commun "pill" du bouton compte */
 
-/* Conteneur sidenav */
-.app-container{
-  flex:1 1 auto;         /* 🔑 occupe tout l’espace restant */
-  overflow:hidden;
+
+.chip-btn:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(0,0,0,.22);
+  border-color: rgba(255,255,255,.32);
+}
+.chip-btn:active{ transform: translateY(0); }
+
+.account-btn{ max-width: 320px; }
+.chip-chev{ margin-left:4px; opacity:.9; }
+
+/* avatar */
+.avatar{
+  width:24px; height:24px;
+  border-radius:50%; overflow:hidden;
+  background: rgba(255,255,255,.14);
+  border: 1px solid rgba(255,255,255,.25);
+  display:inline-flex; align-items:center; justify-content:center;
+}
+.avatar img{ width:100%; height:100%; object-fit:cover; display:block; }
+.avatar .mat-icon{ font-size:20px; width:20px; height:20px; }
+
+/* identités */
+.whoami{
+  display:flex; flex-direction:column; min-width:0; line-height:1.05;
+}
+.whoami .name{
+  font-size:.85rem; font-weight:700;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  max-width: 180px;
+}
+.whoami .email{
+  font-size:.72rem; opacity:.9;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  max-width: 180px;
 }
 
-/* Zone de contenu centrale */
-.app-content{
-  display:flex;
-  flex-direction:column;
-  min-height:0;          /* 🔑 autorise les enfants à scroller/occuper la hauteur */
+/* Menu Compte */
+.account-menu .account-header{
+  display:flex; align-items:center; gap:12px;
+  padding:12px 14px 10px;
+}
+.account-menu .avatar.sm{ width:42px; height:42px; }
+
+/* Ligne "Thème foncé" */
+.menu-row{
+  display:flex; align-items:center;
+  padding: 10px 14px;
+}
+.menu-row .menu-label{
+  color: var(--text-dark, #0f172a);
+  font-size: 0.95rem;
+}
+.menu-row .theme-switch{
+  margin-left:auto;
 }
 
-/* Wrapper autour du router-outlet */
-.main{
-  flex:1 1 auto;         /* 🔑 pousse jusqu’en bas */
-  min-height:0;          /* 🔑 indispensable pour que le Chat scrolle */
-  display:flex;
-  flex-direction:column;
-  overflow:hidden;
+/* ---- Switch custom style ---- */
+.theme-switch.mat-mdc-slide-toggle .mdc-switch__track {
+  background-color: #cbd5e1 !important;  /* gris clair */
+  border-radius: 999px;
 }
-
-/* Bouton déconnexion */
-.custom-logout-btn{
-  background:linear-gradient(to right,#a19dda48,#1e1b2bff);
-  color:#fff; border:1px solid #b9a6a6ff; border-radius:20px;
-  padding:6px 16px; font-weight:500; display:flex; align-items:center; gap:8px;
-  cursor:pointer; transition:background .3s ease;
+.theme-switch.mat-mdc-slide-toggle .mdc-switch__handle {
+  background-color: #fff !important;
+  border: 1px solid #94a3b8;
 }
-.custom-logout-btn:hover{ background:linear-gradient(to right,#0a0a0aff,#3b2c60); }
-.logout-icon{ color:#e41212ee; }
-
-/* ❌ Supprime ces anciennes règles si tu les as encore */
-.main-content > router-outlet ~ * { }     /* à retirer */
-.app-content ::ng-deep > * { }            /* à retirer */
+.theme-switch.mat-mdc-slide-toggle.mat-mdc-slide-toggle-checked .mdc-switch__track {
+  background-color: #2b7cff !important;  /* bleu activé */
+}
+.theme-switch.mat-mdc-slide-toggle.mat-mdc-slide-toggle-checked .mdc-switch__handle {
+  background-color: #fff !important;
+  border: 1px solid #1e40af;
+}

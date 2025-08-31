@@ -1,59 +1,437 @@
-/* src/styles.css - LE CODE FINAL */
+/* ===========================
+   src/styles.css
+   Thèmes clair/sombre + variables globales
+   =========================== */
 
+/* Base & transitions */
 :root {
-  --cgpt-sidebar-bg:       #202123;
-  --cgpt-toolbar-bg:       linear-gradient(to bottom, #30353fff, #404e68ff);
-  --cgpt-accent:           #10a37f;
-  --cgpt-chat-bg:          #f7f7f8;
-  --cgpt-bubble-user:      #10a37f;
-  --cgpt-bubble-bot:       #ffffff;
-  --cgpt-text-primary:     #e5e5e5;
-  --cgpt-text-secondary:   #ffffff;
-
-  /* chat / fond des écrans */
-  --cgpt-chat-bg-start:    #404e68ff;
-  --cgpt-chat-bg-end:      rgb(148, 158, 177);
-
-  /* accents (boutons, focus) */
-  --cgpt-accent-end:       #505d81;
+  color-scheme: light;
+  --theme-transition: background-color .25s ease, color .25s ease, border-color .25s ease, box-shadow .25s ease;
 }
 
-
-.mat-sidenav {
-  background-color: var(--cgpt-sidebar-bg) !important;
-  color: var(--cgpt-text-primary) !important;
-}
-
-/* === Structure globale === */
 html, body {
   height: 100%;
   margin: 0;
   padding: 0;
   overflow: hidden;
-  font-family: 'Segoe UI', sans-serif;
-
-  /* ✅ LA CORRECTION DÉFINITIVE : On force le fond sombre sur toute la page */
-  background: linear-gradient(160deg, var(--cgpt-chat-bg-start), var(--cgpt-chat-bg-end));
+  font-family: 'Segoe UI', 'Roboto', sans-serif;
 }
 
-/* Cacher toutes les scrollbar visuellement */
-body::-webkit-scrollbar { display: none; }
+/* Masquer les scrollbars (conserve le scroll) */
 * { scrollbar-width: none; -ms-overflow-style: none; }
-*::-webkit-scrollbar { width:0!important; height:0!important; display:none!important; }
+*::-webkit-scrollbar { display: none !important; }
 
-/*
-  Le conteneur est maintenant transparent par défaut,
-  donc cette règle n'est plus nécessaire mais ne fait pas de mal.
-*/
-mat-sidenav-container {
-  background-color: transparent !important;
+mat-sidenav-container { background-color: transparent !important; }
+mat-sidenav-content { overflow: hidden !important; height: 100%; }
+
+/* =============== THÈME CLAIR =============== */
+:root {
+  /* Fond app */
+  --app-bg-start: #ffffff;
+  --app-bg-end:   #ffffff;
+
+  /* Surfaces/panneaux */
+  --panel-bg:           #edf2f8;
+  --panel-bg-gradient:  linear-gradient(160deg, #ffffff 0%, #f8fbff 100%);
+  --panel-border:       #e7e6e6;
+  --auth-bg:
+    linear-gradient(180deg, #ced8e2 0%, #eef3f9 45%, #89919b 100%),
+    radial-gradient(900px 480px at 15% 10%, rgba(43,124,255,.08), transparent 60%),
+    radial-gradient(800px 520px at 85% 90%, rgba(16,163,127,.08), transparent 60%);
+
+  /* Cartes (settings) */
+  --light-card-bg:        #fdfdfd;
+  --light-card-border:    #d7e2f3;
+  --light-card-header:    #102033;
+  --light-card-text:      #44566f;
+  --light-card-icon:      #9d9fa1;
+  --light-form-label:     #6f86a5;
+  --light-form-field-bg:  #f2f6fd;
+
+  /* Bouton settings (option) */
+  --settings-btn-bg:      linear-gradient(145deg, #e7eef9 0%, #f7faff 100%);
+  --settings-btn-text:    #1f2b3a;
+  --settings-btn-icon:    #1f2b3a;
+  --settings-btn-border:  #c6cfdd;
+
+  /* Bulles chat DÉCOUPLÉES */
+  --chat-bubble-bot-bg:    #e7e8eb;
+  --chat-bubble-bot-text:  #10233f;
+  --chat-bubble-user-bg:   #e7e8eb;
+  --chat-bubble-user-text: #111827;
+  --chat-chip-file-bg:     #dee2e7;
+
+  /* Champs */
+  --form-field-bg:      #f3f6fb;
+  --form-field-border:  var(--panel-border);
+  --form-label-color:   #bec8d4;
+
+  /* États */
+  --accent-primary:   #ffffff;
+  --danger-fg:        #111111;
+  --danger-bg:        #ffffff;
+  --danger-border:    #ffd3cf;
+
+  /* Texte & icônes */
+  --text-primary:     #0f172a;
+  --text-secondary:   #1f2a3b;
+  --text-muted:       #5b6b83;
+  --text-dark:        #0f172a;
+  --link-color:       #2b7cff;
+  --icon-color:       #465971;
+
+  /* Divers */
+  --shadow-s: 0 4px 10px rgba(15, 29, 58, .05);
+  --shadow-m: 0 10px 22px rgba(15, 29, 58, .08);
+  --radius-l: 18px; --radius-m: 14px; --radius-s: 10px;
+  --trans: .22s cubic-bezier(.2,.8,.2,1);
+
+  /* Toolbar */
+  --cgpt-toolbar-bg:    linear-gradient(180deg, #ffffff, #fefeff);
+  --cgpt-toolbar-text:  #0f172a;
+  --cgpt-toolbar-shadow: 0 4px 10px rgba(0,0,0,.08);
+
+  /* Fond chat */
+  --cgpt-chat-bg: linear-gradient(150deg, var(--app-bg-start) 0%, var(--app-bg-end) 100%);
+
+  /* Titre & chip */
+  --toolbar-title-color: #222e42;
+  --chip-bg: linear-gradient(145deg, #ffffff, #f5f7fb);
+  --chip-border: rgba(0,0,0,.08);
+  --chip-text: #1f2a3b;
+  --chip-shadow: 0 6px 14px rgba(15,29,58,.10);
+  --chip-shadow-hover: 0 10px 22px rgba(15,29,58,.14);
+  --chip-ring: 0 0 0 1px rgba(43,124,255,.10);
+
+  /* === Variables BOUTONS côté app === */
+  /* Sidebar: "Nouvelle conv." */
+  --sidebar-newconv-bg:        #ffffff;
+  --sidebar-newconv-bg-hover:  #ffffff;
+  --sidebar-newconv-text:      #000000;
+  --sidebar-newconv-icon:      #000000;
+  --sidebar-newconv-border:    transparent;
+
+  /* Settings: "Enregistrer" */
+  --settings-save-bg:          #8a929e;
+  --settings-save-bg-hover:    #a7a7a7;
+  --settings-save-text:        #ffffff;
+  --settings-save-icon:        #ffffff;
+  --settings-save-border:      transparent;
+
+  /* Settings: "Annuler" */
+  --settings-cancel-bg:        #c97070;
+  --settings-cancel-bg-hover:  #b94a4a;
+  --settings-cancel-text:      #ffffff;
+  --settings-cancel-border:    transparent;
+
+  /* Sidebar: "Paramètres" (si utilisé) */
+  --settings-btn-solo-bg:      #e8edf6;
+  --settings-btn-solo-text:    #1a2840;
+  --settings-btn-solo-icon:    #1a2840;
+  --settings-btn-solo-border:  #cfd9ea;
+
+  /* === AUTH (login/register) – variables thème clair === */
+  --auth-card-bg: #dae6ec;
+  --auth-card-border: #d9dbdf;
+  --auth-card-text: #0f172a;
+  --auth-shadow: 0 24px 60px rgba(15, 29, 58, .12);
+
+  --auth-input-bg: #f3f6fb;
+  --auth-input-text: #0f172a;
+  --auth-input-border: #d7deea;
+  --auth-input-icon: #64748b;
+  --auth-input-placeholder: #94a3b8;
+  --auth-input-ring: 0 0 0 3px rgba(43,124,255,.18);
+
+  --cgpt-accent: #708fd3;           /* bouton dégradé start */
+  --cgpt-accent-end: #6b7ea0;       /* bouton dégradé end */
+  --auth-btn-text: #ffffff;
+  --auth-link: #1f4fbf;
 }
 
-/*
-  On s'assure que le contenu du chat ne déborde pas
-  et ne crée pas de barres de défilement sur le conteneur.
-*/
-mat-sidenav-content {
-  overflow: hidden !important;
-  height: 100%;
+/* Fond dynamique */
+html, body {
+  background: var(--cgpt-chat-bg, linear-gradient(160deg, var(--app-bg-start), var(--app-bg-end)));
+  transition: var(--theme-transition);
+}
+
+/* =============== THÈME SOMBRE =============== */
+:root[data-theme="dark"] {
+  --auth-bg: transparent;
+  color-scheme: dark;
+
+  --app-bg-start: #7e91af;
+  --app-bg-end:   #2c3444;
+
+  --panel-bg:         #3b4c68;
+  --panel-bg-gradient: linear-gradient(to top, #2c3444, #697b97);
+  --panel-border:     #657591;
+
+  --light-card-bg:        #d1d4d8;
+  --light-card-border:    #000000;
+  --light-card-header:    #090a0a;
+  --light-card-text:      #d1d5db;
+  --light-card-icon:      #355483;
+  --light-form-label:     #cbd5e1;
+  --light-form-field-bg:  #ffffff;
+
+  --settings-btn-bg:      #2a3547;
+  --settings-btn-text:    #ffffff;
+  --settings-btn-icon:    #d1d5db;
+  --settings-btn-border:  #3b475d;
+
+  /* Bulles chat */
+  --chat-bubble-bot-bg:    #3b4c68;
+  --chat-bubble-bot-text:  #e8f1ff;
+  --chat-bubble-user-bg:   #6e86a1;
+  --chat-bubble-user-text: #0c1424;
+  --chat-chip-file-bg:     #7cb0ed;
+
+  --form-field-bg:      #2e3440;
+  --form-field-border:  var(--panel-border);
+  --form-label-color:   #d8dee9;
+
+  --accent-primary:   var(--chat-bubble-user-bg);
+  --danger-fg:        #ffffff;
+  --danger-bg:        rgba(255, 255, 255, 0.1);
+  --danger-border:    rgba(180, 140, 140, 0.582);
+
+  --text-primary:     #f8fcff;
+  --text-secondary:   #ffffff;
+  --text-muted:       #d8dee9;
+  --text-dark:        #f8fcff;
+  --link-color:       #8fbbff;
+  --icon-color:       #c0c8d4;
+
+  --shadow-s: 0 4px 12px rgba(12,18,38,.16);
+  --shadow-m: 0 12px 28px rgba(12,18,38,.22);
+
+  --radius-l: 18px; --radius-m: 14px; --radius-s: 10px;
+  --trans: .22s cubic-bezier(.2,.8,.2,1);
+
+  --cgpt-toolbar-bg: linear-gradient(180deg,#5c78a3,#4c5f7e);
+  --cgpt-toolbar-text: #f3f6ff;
+  --cgpt-toolbar-shadow: 0 6px 14px rgba(0,0,0,.25);
+
+  --cgpt-chat-bg: linear-gradient(160deg, var(--app-bg-start), var(--app-bg-end));
+
+  /* Titre & chip */
+  --toolbar-title-color: #f3f6ff;
+  --chip-bg: linear-gradient(145deg, #3b4c68, #2c3444);
+  --chip-border: rgba(255,255,255,.18);
+  --chip-text: #f3f6ff;
+  --chip-shadow: 0 6px 14px rgba(0,0,0,.40);
+  --chip-shadow-hover: 0 10px 24px rgba(0,0,0,.55);
+  --chip-ring: 0 0 0 1px rgba(143,187,255,.16);
+
+  /* Boutons app */
+  --sidebar-newconv-bg:        #465b7c;
+  --sidebar-newconv-bg-hover:  #465b7c;
+  --sidebar-newconv-text:      #ffffff;
+  --sidebar-newconv-icon:      #ffffff;
+  --sidebar-newconv-border:    transparent;
+
+  --settings-save-bg:          #757575d7;
+  --settings-save-bg-hover:    #afafaf;
+  --settings-save-text:        #ffffff;
+  --settings-save-icon:        #0c1a2e;
+  --settings-save-border:      transparent;
+
+  --settings-cancel-bg:        #b65454;
+  --settings-cancel-bg-hover:  #ac4a4a;
+  --settings-cancel-text:      #ffffff;
+  --settings-cancel-border:    transparent;
+
+  --settings-btn-solo-bg:      #3e4c63;
+  --settings-btn-solo-text:    #e8efff;
+  --settings-btn-solo-icon:    #c9dcff;
+  --settings-btn-solo-border:  #4b5a75;
+
+  /* === AUTH (login/register) – variables thème sombre === */
+  --auth-card-bg: rgba(255,255,255,0.06);
+  --auth-card-border: rgba(255,255,255,0.14);
+  --auth-card-text: #eef6ff;
+  --auth-shadow: 0 18px 50px rgba(0,0,0,.35);
+
+  --auth-input-bg: rgba(0,0,0,.25);
+  --auth-input-text: #ffffff;
+  --auth-input-border: rgba(255,255,255,.18);
+  --auth-input-icon: #cbd5e1;
+  --auth-input-placeholder: #a6b7cc;
+  --auth-input-ring: 0 0 0 3px rgba(143,187,255,.22);
+
+  --cgpt-accent: #10a37f;
+  --cgpt-accent-end: #505d81;
+  --auth-btn-text: #ffffff;
+  --auth-link: #8fbbff;
+}
+
+/* Toolbar / Navbar */
+.mat-toolbar,
+.app-toolbar,
+header.app-toolbar {
+  background: var(--cgpt-toolbar-bg) !important;
+  color: var(--cgpt-toolbar-text) !important;
+  box-shadow: var(--cgpt-toolbar-shadow);
+  border-bottom: 1px solid rgba(0,0,0,.06);
+  transition: var(--theme-transition);
+  position: sticky; top: 0; z-index: 100;
+}
+
+/* Titre adaptatif + spacer */
+.toolbar-title {
+  margin-left: 8px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--toolbar-title-color);
+}
+.spacer { flex: 1; }
+
+/* Chip compte */
+.chip-btn{
+  display:inline-flex; align-items:center; gap:10px;
+  height:42px; padding:0 16px; border-radius:999px;
+  border:1px solid var(--chip-border);
+  background: var(--chip-bg);
+  color: var(--chip-text); font-weight:600; font-size:.85rem; letter-spacing:.2px;
+  line-height:1; box-shadow: var(--chip-shadow), var(--chip-ring);
+  backdrop-filter: saturate(120%) blur(6px);
+  transition: all .2s ease;
+}
+.chip-btn:hover { transform: translateY(-2px); box-shadow: var(--chip-shadow-hover), var(--chip-ring); }
+.chip-btn:active{ transform: translateY(0); }
+.account-btn{ max-width:320px; }
+.chip-chev{ margin-left:4px; opacity:.9; }
+
+.avatar{ width:26px; height:26px; border-radius:50%; overflow:hidden;
+  background: rgba(255,255,255,.12);
+  border: 1px solid color-mix(in oklab, var(--chip-border), #ffffff 35%);
+  display:inline-flex; align-items:center; justify-content:center;
+  box-shadow: inset 0 1px 1px rgba(0,0,0,.18);
+}
+.avatar img{ width:100%; height:100%; object-fit:cover; display:block; }
+.avatar .mat-icon{ font-size:18px; color: var(--chip-text); }
+
+.whoami{ min-width:0; line-height:1.05; }
+.whoami .name{ font-size:.86rem; font-weight:700; color:var(--chip-text); max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.whoami .email{ font-size:.74rem; opacity:.85; color:var(--chip-text); max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* Menu Compte */
+.account-menu.mat-mdc-menu-panel{
+  border-radius:14px; box-shadow:0 16px 40px rgba(12,18,38,.18); padding:4px; overflow:hidden;
+  transition:var(--theme-transition);
+}
+.account-menu .mat-mdc-menu-content{ padding:0; }
+.account-menu .account-header{
+  display:flex; align-items:center; gap:12px; padding:12px 14px 10px;
+  background: linear-gradient(180deg,#fafbff,#f3f6fc);
+}
+.account-menu .account-header .avatar.sm{ width:42px; height:42px; border-radius:50%;
+  background: rgba(0,0,0,.04); border:1px solid rgba(0,0,0,.08); box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
+}
+.account-menu .account-header .info{ min-width:0; }
+.account-menu .account-header .info .name{ font-weight:700; font-size:.95rem; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.account-menu .account-header .info .email{ font-size:.80rem; color:#475569; opacity:.95; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.account-menu .mat-divider{ margin:4px 8px; border-top-color: rgba(0,0,0,.06); }
+.account-menu .mat-mdc-menu-item{ height:auto; line-height:1; padding:10px 12px; margin:2px 6px; border-radius:10px; }
+.account-menu .mat-mdc-menu-item .mat-icon{ font-size:20px; width:20px; height:20px; margin-right:10px; color:#2b7cff; }
+.account-menu .mat-mdc-menu-item:hover{ background: linear-gradient(90deg, rgba(43,124,255,.10), rgba(43,124,255,.04)); }
+.account-menu .mat-mdc-menu-item.mat-mdc-focus-indicator:focus-visible{ outline:2px solid rgba(43,124,255,.5); outline-offset:2px; background: rgba(43,124,255,.08); }
+
+/* Sidebar surface */
+.mat-sidenav { background-color: var(--panel-bg) !important; color: var(--text-primary) !important; transition: var(--theme-transition); }
+
+/* Libellé switch du menu */
+.account-menu .menu-row .menu-label{ color:#0f172a !important; opacity:1 !important; }
+:root[data-theme="dark"] .account-menu .menu-row .menu-label{ color:#0f172a !important; }
+
+/* Ligne thème du menu */
+.account-menu .menu-row{
+  box-sizing:border-box; min-height:48px; padding:0 12px;
+  display:flex; align-items:center; gap:10px;
+}
+.account-menu .menu-row .menu-icon{
+  width:20px; height:20px; font-size:20px; line-height:20px;
+  display:inline-flex; align-items:center; justify-content:center;
+  color:#2b7cff; margin-left:8px; margin-right:1px; flex-shrink:0;
+}
+.account-menu .menu-row .theme-switch{ margin-left:auto; align-self:center; }
+
+/* Switch custom */
+.account-menu .theme-switch.mat-mdc-slide-toggle{
+  --mdc-switch-unselected-track-color:#cbd5e1;
+  --mdc-switch-unselected-handle-color:#ffffff;
+  --mdc-switch-selected-track-color:#2b7cff;
+  --mdc-switch-selected-handle-color:#ffffff;
+  --mdc-switch-selected-icon-color:transparent;
+  --mdc-switch-unselected-icon-color:transparent;
+  --mdc-switch-handle-shape:999px;
+  --mdc-switch-track-shape:999px;
+}
+.account-menu .theme-switch .mdc-switch__icons{ display:none !important; }
+.account-menu .theme-switch .mdc-switch__handle{ border:1px solid #94a3b8 !important; }
+
+/* Fond global (rappel) */
+:root[data-theme="dark"] html,
+:root[data-theme="dark"] body{
+  background: var(--cgpt-chat-bg, linear-gradient(160deg, var(--app-bg-start), var(--app-bg-end)));
+  transition: var(--theme-transition);
+}
+
+/* =========================================================
+   WELCOME OVERLAY (global, thème clair/sombre via variables)
+   ========================================================= */
+.welcome-overlay{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height: 56vh;
+  padding: 24px;
+}
+
+.welcome-card{
+  background: var(--light-card-bg, #f6f8fb);
+  border: 1px solid var(--light-card-border, #e5eaf4);
+  color: var(--text-primary, #0f172a);
+  border-radius: 16px;
+  box-shadow: var(--shadow-s, 0 6px 16px rgba(0,0,0,.08));
+  padding: 20px 18px;
+  width: min(720px, 92vw);
+}
+
+:root[data-theme="dark"] .welcome-card{
+  background: var(--panel-bg, #2d3748);
+  border-color: var(--panel-border, #4a5568);
+  color: var(--text-primary, #f8fcff);
+  box-shadow: var(--shadow-m, 0 12px 28px rgba(0,0,0,.22));
+}
+
+.welcome-title{
+  font-weight: 700;
+  font-size: 1.05rem;
+  margin-bottom: 12px;
+}
+
+.welcome-suggestions{
+  display:flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.welcome-suggestions .chip{
+  border: 1px solid var(--chip-border, rgba(0,0,0,.08));
+  background: var(--chip-bg, #fff);
+  color: var(--chip-text, #1f2a3b);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-weight: 600;
+  font-size: .85rem;
+  cursor: pointer;
+  transition: transform .1s ease, box-shadow .2s ease, border-color .2s ease;
+}
+
+.welcome-suggestions .chip:hover{
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-s, 0 6px 14px rgba(0,0,0,.08));
+  border-color: color-mix(in oklab, var(--chip-border, #ddd), #2b7cff 30%);
 }

@@ -1,19 +1,19 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, Subject } from 'rxjs';
+import { map } from 'rxjs/operators'; // ← IMPORTANT pour externalAnswer()
 
+// --------- Types API existants ----------
 export interface Conversation {
   id: number;
   title: string;
   date?: string | number | null;
 }
-
 export interface ChatReply {
   reply: string;
   conversationId: number;
   usedDocs?: string[];
 }
-
 export interface ChatMessageDto {
   role: 'USER' | 'ASSISTANT' | 'user' | 'assistant' | string;
   content?: string;
@@ -29,12 +29,25 @@ export interface MessageMeta {
   usedDocs?: string[];
 }
 
+// ---- Web (citations) ----
+export interface WebResult {
+  title?: string;
+  url: string;
+  snippet?: string;
+}
+export interface WebLogEntry {
+  ts: string;
+  role: 'user' | 'assistant';
+  content: string;
+  citations?: WebResult[];
+}
+
 const PENDING_CONV_ID = 0; // avant d’avoir l’ID réel
 
 @Injectable({ providedIn: 'root' })
 export class ChatService {
-  // adapte si tu utilises environment.api
   private readonly API = 'http://localhost:8080/api';
+  private readonly IA  = 'http://localhost:5000';
 
   readonly historyUpdated$ = new Subject<void>();
 
@@ -75,11 +88,40 @@ export class ChatService {
     this.historyUpdated$.next();
   }
 
-  // ============== PERSISTENCE MÉTA (chips/usedDocs) ==============
-
-  private storageKey(convId: number) {
-    return `chat_meta_${convId}`;
+  // ============== MCP Web search (pour le bouton Web) ==============
+  externalAnswer(query: string, k = 5, conversationId?: number | null, ns?: string)
+    : Observable<{ reply: string; citations: WebResult[] }> {
+    const body: any = {
+      action: 'external_answer',
+      parameters: { query, k }
+    };
+    if (conversationId != null) body.conversationId = conversationId;
+    return this.http.post<{ version: string; id: string; status: string; data: { reply: string; citations: WebResult[] } }>(
+      `${this.IA}/mcp/execute`,
+      body,
+      { headers: ns ? { 'X-Doc-NS': ns } : undefined }
+    ).pipe(
+      map(res => (res?.data ?? { reply: 'Aucune réponse', citations: [] }))
+    );
   }
+
+  fetchWebLog(conversationId?: number | null, ns?: string) {
+    const params: any = {};
+    if (conversationId != null) params.conv = String(conversationId);
+    return this.http.get<WebLogEntry[]>(`${this.IA}/web-log`, {
+      params,
+      headers: ns ? { 'X-Doc-NS': ns } : undefined
+    });
+  }
+
+  migrateWebLogToConv(newConvId: number, ns?: string) {
+    return this.http.post(`${this.IA}/web-log/migrate`, { toConv: newConvId }, {
+      headers: ns ? { 'X-Doc-NS': ns } : undefined
+    });
+  }
+
+  // ============== PERSISTENCE MÉTA (chips/usedDocs) ==============
+  private storageKey(convId: number) { return `chat_meta_${convId}`; }
 
   private ensure(convId: number): Record<string, MessageMeta> {
     let map = this.metaByConv.get(convId);
@@ -115,39 +157,34 @@ export class ChatService {
     this.saveToStorage(id, map);
   }
 
-  /** Récupère les métadonnées d’un message (clé = role|content) */
-  getMeta(convId: number, key: string): MessageMeta | undefined {
-    const map = this.ensure(convId);
-    return map[key];
-  }
-
   /** Récupère toutes les métadonnées connues pour une conversation */
   getAllMeta(convId: number): Record<string, MessageMeta> {
     return this.ensure(convId);
-  }
-
-  /** Après création d’une nouvelle conv : migre les méta du bucket “pending” (0) vers l’ID réel */
-  migratePendingTo(newConvId: number): void {
-    if (!newConvId || newConvId <= 0) return;
-
-    const pending = this.ensure(PENDING_CONV_ID);
-    if (!Object.keys(pending).length) return;
-
-    const target = this.ensure(newConvId);
-    for (const k of Object.keys(pending)) {
-      target[k] = { ...target[k], ...pending[k] };
-    }
-    this.metaByConv.set(newConvId, target);
-    this.saveToStorage(newConvId, target);
-
-    // reset pending
-    this.metaByConv.set(PENDING_CONV_ID, {});
-    this.saveToStorage(PENDING_CONV_ID, {});
   }
 
   /** Supprime tout (utile si on “Tout supprimer”) */
   clearForConversation(convId: number): void {
     this.metaByConv.delete(convId);
     sessionStorage.removeItem(this.storageKey(convId));
+  }
+
+  /** Après création d’une nouvelle conv : migre les méta du bucket “pending” (0) vers l’ID réel */
+  migratePendingTo(newConvId: number): void {
+    if (!newConvId || newConvId <= 0) return;
+
+    // migrate meta
+    const pending = this.ensure(PENDING_CONV_ID);
+    if (Object.keys(pending).length) {
+      const target = this.ensure(newConvId);
+      for (const k of Object.keys(pending)) {
+        target[k] = { ...target[k], ...pending[k] };
+      }
+      this.metaByConv.set(newConvId, target);
+      this.saveToStorage(newConvId, target);
+
+      // reset pending
+      this.metaByConv.set(PENDING_CONV_ID, {});
+      this.saveToStorage(PENDING_CONV_ID, {});
+    }
   }
 }

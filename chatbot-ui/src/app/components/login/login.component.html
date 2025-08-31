@@ -1,53 +1,57 @@
-<div class="auth-container">
-  <div class="auth-card">
-    <div class="brand">
-      <span class="material-icons">smart_toy</span>
-      <h1>Mon Agent Conversationnel</h1>
+<div class="auth-page">
+  <div class="auth-layout">
+    <!-- H E R O (gauche) -->
+    <section class="hero">
+      <div class="hero-inner">
+        <h2 class="hero-kicker">Démarrer</h2>
+
+        <div class="hero-typing">
+          <span class="static">Donne-moi des idées de&nbsp;</span>
+          <span #typing class="typing"></span>
+          <span #cursor class="cursor">•</span>
+        </div>
+
+        <p class="hero-sub">
+          pour une petite soirée, un projet d’école, un voyage… ✨
+        </p>
+      </div>
+    </section>
+
+    <!-- C A R D (droite) -->
+    <section class="auth-card">
+      <div class="brand">
+        <span class="material-icons">smart_toy</span>
+      </div>
+
+      <h1 class="title">Mon Agent Conversationnel</h1>
       <p class="subtitle">Connectez-vous pour continuer</p>
-    </div>
 
-    <form (ngSubmit)="login()" #loginForm="ngForm" novalidate>
-      <div class="form-field">
-        <label for="email">Email</label>
-        <div class="input">
-          <span class="material-icons">mail</span>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            [(ngModel)]="email"
-            required
-            autocomplete="email"
-            placeholder="vous@exemple.com" />
+      <form (ngSubmit)="login()" autocomplete="on">
+        <div class="form-field">
+          <label>Email</label>
+          <div class="input">
+            <span class="material-icons">mail</span>
+            <input type="email" [(ngModel)]="email" name="email" placeholder="vous@exemple.com" required />
+          </div>
         </div>
-      </div>
 
-      <div class="form-field">
-        <label for="password">Mot de passe</label>
-        <div class="input">
-          <span class="material-icons">lock</span>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            [(ngModel)]="password"
-            required
-            autocomplete="current-password"
-            placeholder="Votre mot de passe" />
+        <div class="form-field">
+          <label>Mot de passe</label>
+          <div class="input">
+            <span class="material-icons">lock</span>
+            <input type="password" [(ngModel)]="password" name="password" placeholder="Votre mot de passe" required />
+          </div>
         </div>
-      </div>
 
-      <button class="btn primary" type="submit" [disabled]="loginForm.invalid">
-        <span class="material-icons">login</span>
-        Se connecter
-      </button>
+        <button class="btn primary" [disabled]="loading">
+          <span class="material-icons">login</span>
+          <span>Se connecter</span>
+        </button>
+      </form>
 
-<!-- … -->
-
-      <div class="alt-action">
-        Pas de compte ?
-        <a routerLink="/register">Créer un compte</a>
-      </div>
-    </form>
+      <p class="alt-action">
+        Pas de compte ? <a routerLink="/register">Créer un compte</a>
+      </p>
+    </section>
   </div>
 </div>
