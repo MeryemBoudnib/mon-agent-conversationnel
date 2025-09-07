@@ -435,3 +435,146 @@ header.app-toolbar {
   box-shadow: var(--shadow-s, 0 6px 14px rgba(0,0,0,.08));
   border-color: color-mix(in oklab, var(--chip-border, #ddd), #2b7cff 30%);
 }
+
+/* =========================================================
+   === OPTION B : THÈME ADMIN (Dashboard + Users) ==========
+   (Ajouté sans rien modifier d’autre)
+   ========================================================= */
+
+/* Thème clair ADMIN – s’applique au conteneur de la page Users
+   et au composant Admin Dashboard. On inclut trois sélecteurs :
+   - .users-page  (existe déjà côté Users)
+   - .admin-dashboard (si tu l’utilises)
+   - app-admin-dashboard (sélecteur du composant Angular) */
+.users-page,
+.admin-dashboard,
+app-admin-dashboard {
+  --bg:    #f5f7fb;
+  --fg:    #1e293b;
+  --panel: #ffffff;
+  --muted: #64748b;
+  color: var(--fg);
+  background: var(--bg);
+}
+/* Backdrop doux et cohérent */
+.confirm-dialog-backdrop {
+  backdrop-filter: blur(2px);
+  background: rgba(2, 6, 23, .45);
+}
+
+/* Surface de la modale */
+.confirm-dialog-surface .mat-mdc-dialog-container .mdc-dialog__surface {
+  border-radius: 16px !important;
+  box-shadow: 0 20px 60px rgba(0,0,0,.35) !important;
+  overflow: hidden; /* coupe les bords internes */
+}
+
+/* Liseré subtil pour le mode danger */
+
+/* Backdrop doux (+ blur léger) */
+/* Backdrop flouté + assombri */
+.confirm-backdrop {
+  backdrop-filter: blur(2px);
+  background: rgba(2, 6, 23, .45);
+}
+
+/* Surface Material (coins/ombre propres) */
+.confirm-surface .mat-mdc-dialog-container .mdc-dialog__surface{
+  border-radius:16px !important;
+  box-shadow:0 22px 64px rgba(0,0,0,.34) !important;
+  overflow:hidden;
+  padding:0; /* le padding est géré par le composant */
+}
+
+/* Liseré discret en mode danger */
+.confirm-danger .mat-mdc-dialog-container .mdc-dialog__surface{
+  border:1px solid rgba(239,68,68,.22);
+}
+/* ---- Fix "Annuler" en mode sombre ---- */
+.confirm-surface .cd-btn-cancel {
+  border: 1px solid rgba(184, 192, 209, 0.12);
+  background-color: #eee3e3;
+  border-radius: 10px;
+}
+
+/* Thème sombre ADMIN – activé quand le site est en dark
+   via :root[data-theme="dark"] (pas d’impact hors admin). */
+:root[data-theme="dark"] .users-page,
+:root[data-theme="dark"] .admin-dashboard,
+:root[data-theme="dark"] app-admin-dashboard {
+  --bg:    #1f2937;
+  --fg:    #e5e7eb;
+  --panel: #111827;
+  --muted: #9ca3af;
+}
+/* ===========================
+   DIALOG THEME FIX (ajout)
+   =========================== */
+
+/* Variables par défaut (clair) pour les dialogs */
+:root {
+  --dialog-bg: #ffffff;
+  --dialog-fg: #0f172a;
+  --dialog-border: rgba(0,0,0,.08);
+  --dialog-shadow: 0 22px 64px rgba(0,0,0,.20);
+  --dialog-danger-border: rgba(239,68,68,.22);
+  --dialog-backdrop: rgba(2, 6, 23, .35);
+}
+
+/* Mode sombre appliqué soit depuis <html data-theme="dark">,
+   soit directement sur le conteneur des overlays CDK */
+:root[data-theme="dark"],
+.cdk-overlay-container[data-theme="dark"] {
+  --dialog-bg: #0f172a;
+  --dialog-fg: #f8fcff;
+  --dialog-border: rgba(255,255,255,.12);
+  --dialog-shadow: 0 22px 64px rgba(0,0,0,.55);
+  --dialog-danger-border: rgba(239,68,68,.30);
+  --dialog-backdrop: rgba(2, 6, 23, .55);
+}
+
+/* Backdrop (utilise tes classes existantes) */
+.confirm-dialog-backdrop,
+.confirm-backdrop {
+  backdrop-filter: blur(2px);
+  background: var(--dialog-backdrop);
+}
+
+/* Surface de la modale (tes classes existantes) */
+.confirm-dialog-surface .mat-mdc-dialog-container .mdc-dialog__surface,
+.confirm-surface .mat-mdc-dialog-container .mdc-dialog__surface {
+  background: var(--dialog-bg) !important;
+  color: var(--dialog-fg) !important;
+  border: 1px solid var(--dialog-border) !important;
+  border-radius: 16px !important;
+  box-shadow: var(--dialog-shadow) !important;
+  overflow: hidden;
+  padding: 0; /* ton composant gère l’intérieur */
+}
+
+/* Liseré danger (ta classe existante) */
+.confirm-danger .mat-mdc-dialog-container .mdc-dialog__surface {
+  border-color: var(--dialog-danger-border) !important;
+}
+
+/* Intérieur du composant de confirmation (hérite des couleurs) */
+.cd-wrap { padding: 20px 18px; color: inherit; }
+.cd-title { margin: 0; font-size: 1.05rem; font-weight: 700; color: inherit; }
+.cd-msg   { margin: 8px 0 18px; line-height: 1.35; color: inherit; }
+
+/* Icône/badge */
+.cd-badge{
+  width:36px;height:36px;border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;
+  background: rgba(43,124,255,.10); color:#2b7cff;
+}
+.danger .cd-badge{ background: rgba(239,68,68,.10); color:#ef4444; }
+
+/* Boutons — on garde ton Material, mais on force un contraste OK en dark */
+.cd-actions{ display:flex; justify-content:flex-end; gap:10px; }
+.confirm-surface .cd-btn-cancel {
+  border: 1px solid var(--dialog-border) !important;
+  background: color-mix(in oklab, var(--dialog-bg), #888 6%);
+  color: var(--dialog-fg) !important;
+  border-radius: 10px;
+}

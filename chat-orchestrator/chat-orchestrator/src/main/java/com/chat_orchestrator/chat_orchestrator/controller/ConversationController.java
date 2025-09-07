@@ -41,12 +41,14 @@ public class ConversationController {
         }
         String email = auth.getName();
         return userRepository.findByEmail(email)
-                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(HttpStatus.UNAUTHORIZED, "Utilisateur introuvable: " + email));
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED, "Utilisateur introuvable: " + email));
     }
 
     private void assertOwnerOr403(Long conversationId, User user) {
         Conversation c = conversationRepository.findById(conversationId)
-                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(HttpStatus.NOT_FOUND, "Conversation introuvable"));
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Conversation introuvable"));
         if (c.getOwner() == null || !c.getOwner().getId().equals(user.getId())) {
             throw new org.springframework.web.server.ResponseStatusException(HttpStatus.FORBIDDEN);
         }
@@ -69,21 +71,31 @@ public class ConversationController {
     }
 
     // ✅ Accepte /message ET /messages (compat front)
-    // ✅ accepte /message et /messages
     @PostMapping(path = {"/{id}/message", "/{id}/messages"}, consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Void> addMessage(@PathVariable Long id, @RequestBody Map<String,String> payload) {
-        String role = payload.get("role");
+        String role = payload.getOrDefault("role", "user");
         String content = payload.get("content");
         conversationService.saveMessage(id, role, content);
         return ResponseEntity.ok().build();
     }
-
 
     @GetMapping("/{id}/messages")
     public ResponseEntity<List<MessageDto>> getMessages(@PathVariable Long id) {
         User owner = currentUserOr401();
         assertOwnerOr403(id, owner);
         return ResponseEntity.ok(conversationService.getMessagesByConversation(id));
+    }
+
+    // 🔁 NOUVEAU : mettre à jour (renommer) une conversation
+    @PatchMapping(path = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Conversation> updateConversation(@PathVariable Long id,
+                                                           @RequestBody Map<String, Object> body) {
+        User owner = currentUserOr401();
+        assertOwnerOr403(id, owner);
+
+        String title = body.get("title") != null ? String.valueOf(body.get("title")) : null;
+        Conversation updated = conversationService.updateTitle(id, title);
+        return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/{id}")
@@ -94,12 +106,28 @@ public class ConversationController {
         return ResponseEntity.noContent().build();
     }
 
-    @DeleteMapping
-    public ResponseEntity<Void> deleteAllConversations() {
-        // Optionnel: ne laisser que l'ADMIN ici, sinon on efface tout le monde
+    // ❌ Ancien endpoint global supprimé :
+    // @DeleteMapping
+    // public ResponseEntity<Void> deleteAllConversations() { ... }
+
+    // ---------- NOUVEAU : supprimer uniquement MES conversations ----------
+    @DeleteMapping("/me")
+    public ResponseEntity<Void> deleteMyConversations() {
         User owner = currentUserOr401();
-        // Si tu veux restreindre: vérifier role ADMIN avant.
-        conversationService.deleteAllConversations();
+        conversationService.deleteAllFor(owner);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ---------- NOUVEAU : purge globale (ADMIN uniquement) ----------
+    @DeleteMapping("/purge")
+    public ResponseEntity<Void> purgeAllConversations() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAdmin = auth.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+        if (!isAdmin) {
+            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.FORBIDDEN);
+        }
+        conversationService.purgeAllConversationsAsAdmin();
         return ResponseEntity.noContent().build();
     }
 }

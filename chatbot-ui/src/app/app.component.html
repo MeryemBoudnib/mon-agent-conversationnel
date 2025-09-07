@@ -1,13 +1,14 @@
-<ng-container *ngIf="isShellRoute(); else routeOnly">
+<!-- ✅ Pour ADMIN : pas de toolbar/sidenav du shell -->
+<ng-container *ngIf="!isAdmin && isShellRoute(); else routeOnly">
   <mat-toolbar class="app-toolbar" color="primary">
+    <!-- burger uniquement pour non-admin -->
     <button mat-icon-button (click)="toggleSidebar()" aria-label="Ouvrir le menu">
       <mat-icon>menu</mat-icon>
     </button>
 
-    <span class="toolbar-title">Mon Agent Conversationnel</span>
+    <span class="toolbar-title" style="margin-left: 8px">Mon Agent Conversationnel</span>
     <span class="spacer"></span>
 
-    <!-- actions à droite : bouton Compte uniquement -->
     <div class="toolbar-actions">
       <button class="chip-btn account-btn" [matMenuTriggerFor]="accountMenu" aria-label="Compte">
         <div class="avatar">
@@ -22,7 +23,6 @@
       </button>
 
       <mat-menu #accountMenu="matMenu" class="account-menu">
-        <!-- En-tête -->
         <div class="account-header">
           <div class="avatar sm">
             <mat-icon *ngIf="!avatarUrl">account_circle</mat-icon>
@@ -36,27 +36,24 @@
 
         <mat-divider></mat-divider>
 
-        <!-- Paramètres -->
         <button mat-menu-item (click)="goToSettings()">
           <mat-icon>settings</mat-icon>
           <span>Paramètres</span>
         </button>
 
-    <div class="menu-row">
-  <mat-icon class="menu-icon">
-    {{ getEffectiveMode()==='dark' ? 'dark_mode' : 'light_mode' }}
-  </mat-icon>
-  <div class="menu-label">
-    <strong>{{ getEffectiveMode()==='dark' ? 'Thème foncé' : 'Thème clair' }}</strong>
-  </div>
-  <mat-slide-toggle
-    class="theme-switch"
-    [checked]="getEffectiveMode()==='dark'"
-    (change)="onToggleDark($event.checked)">
-  </mat-slide-toggle>
-</div>
-
-
+        <div class="menu-row">
+          <mat-icon class="menu-icon">
+            {{ getEffectiveMode()==='dark' ? 'dark_mode' : 'light_mode' }}
+          </mat-icon>
+          <div class="menu-label">
+            <strong>{{ getEffectiveMode()==='dark' ? 'Thème foncé' : 'Thème clair' }}</strong>
+          </div>
+          <mat-slide-toggle
+            class="theme-switch"
+            [checked]="getEffectiveMode()==='dark'"
+            (change)="onToggleDark($event.checked)">
+          </mat-slide-toggle>
+        </div>
 
         <mat-divider></mat-divider>
 
@@ -81,6 +78,7 @@
   </mat-sidenav-container>
 </ng-container>
 
+<!-- 👉 Pour ADMIN (ou routes sans shell) : rendu direct des pages -->
 <ng-template #routeOnly>
   <router-outlet></router-outlet>
 </ng-template>

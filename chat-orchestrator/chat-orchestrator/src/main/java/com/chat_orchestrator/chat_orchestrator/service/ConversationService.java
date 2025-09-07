@@ -6,9 +6,7 @@ import com.chat_orchestrator.chat_orchestrator.entity.Message;
 import com.chat_orchestrator.chat_orchestrator.entity.User;
 import com.chat_orchestrator.chat_orchestrator.repository.ConversationRepository;
 import com.chat_orchestrator.chat_orchestrator.repository.MessageRepository;
-import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
-import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -22,9 +20,6 @@ public class ConversationService {
 
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
-
-    @PersistenceContext
-    private EntityManager em;
 
     public ConversationService(
             ConversationRepository conversationRepository,
@@ -126,11 +121,6 @@ public class ConversationService {
 
         Message message = new Message(role, content);
         conversation.addMessage(message);
-
-        // Si la relation Conversation->Message est en cascade PERSIST, pas besoin de save message.
-        // Sinon, décommentez les deux lignes ci-dessous :
-        // messageRepository.save(message);
-        // conversationRepository.save(conversation);
     }
 
     @Transactional
@@ -138,10 +128,30 @@ public class ConversationService {
         conversationRepository.deleteById(id);
     }
 
+    // ---------- NOUVEAU : mise à jour du titre ----------
     @Transactional
-    public void deleteAllConversations() {
+    public Conversation updateTitle(Long id, String newTitle) {
+        Conversation conv = conversationRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Conversation introuvable"));
+        if (newTitle != null && !newTitle.isBlank()) {
+            conv.setTitle(newTitle.trim());
+        }
+        return conv; // JPA flush auto @Transactional
+    }
+
+    // ---------- NOUVEAU : suppression ciblée (moi) ----------
+    @Transactional
+    public void deleteAllFor(User owner) {
+        conversationRepository.deleteByOwner_Id(owner.getId());
+    }
+
+    // ---------- NOUVEAU : purge globale (ADMIN uniquement) ----------
+    @Transactional
+    public void purgeAllConversationsAsAdmin() {
+        if (!isAdmin()) {
+            throw new AccessDeniedException("Action réservée aux administrateurs.");
+        }
         conversationRepository.deleteAll();
-        // ⚠️ À adapter au nom réel de la séquence (PostgreSQL) ou retirer si non-Postgres
-        em.createNativeQuery("ALTER SEQUENCE conversation_id_seq RESTART WITH 1").executeUpdate();
+        // ⚠️ Évite de reset la séquence en prod/multi-tenant
     }
 }

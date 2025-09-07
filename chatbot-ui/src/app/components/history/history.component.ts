@@ -1,7 +1,7 @@
-import { Component, OnInit }    from '@angular/core';
-import { Router }               from '@angular/router';
-import { CommonModule }         from '@angular/common';
-import { MatIconModule }        from '@angular/material/icon';
+import { Component, OnInit } from '@angular/core';
+import { Router }            from '@angular/router';
+import { CommonModule }      from '@angular/common';
+import { MatIconModule }     from '@angular/material/icon';
 import { ChatService, Conversation } from '../../services/chat.service';
 
 @Component({
@@ -16,7 +16,7 @@ export class HistoryComponent implements OnInit {
 
   constructor(
     private chatService: ChatService,
-    private router: Router                   // ← on injecte Router
+    private router: Router
   ) {}
 
   ngOnInit(): void {
@@ -25,25 +25,26 @@ export class HistoryComponent implements OnInit {
 
   loadHistory(): void {
     this.chatService.getHistory()
-      .subscribe(list => this.conversations = list);
+      .subscribe(list => this.conversations = list ?? []);
   }
 
   delete(id: number): void {
-    if (!confirm('Supprimer définitivement cette conversation ?')) return;
+    if (!confirm('Supprimer définitivement cette conversation ?')) return;
     this.chatService.deleteConversation(id)
       .subscribe(() => this.loadHistory());
   }
-deleteAllConversations(): void {
-  if (!confirm('Tout supprimer et repartir de 1 ?')) return;
-  this.chatService.deleteAllConversations()
-    .subscribe(() => {
-      this.conversations = [];
-      this.router.navigate(['/chat']);
-    });
-}
 
+  /** Purge uniquement MES conversations (DELETE /api/conversations/me) */
+  deleteAllConversations(): void {
+    if (!confirm('Supprimer toutes MES conversations ?')) return;
+    this.chatService.deleteAllMine()
+      .subscribe(() => {
+        this.conversations = [];
+        this.router.navigate(['/chat']);
+      });
+  }
 
-  /** ← NOUVELLE MÉTHODE pour la navigation */
+  /** Navigation vers une conversation */
   viewConversation(id: number): void {
     this.router.navigate(['/chat', id]);
   }

@@ -1,3 +1,4 @@
+// src/main/java/com/chat_orchestrator/chat_orchestrator/config/CorsConfig.java
 package com.chat_orchestrator.chat_orchestrator.config;
 
 import org.springframework.context.annotation.Bean;
@@ -16,8 +17,9 @@ public class CorsConfig {
     @Bean
     public FilterRegistrationBean<CorsFilter> corsFilterRegistration() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:4200"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedOrigins(List.of("http://localhost:4200", "http://127.0.0.1:4200"));
+        // ✅ AJOUT DE PATCH (et HEAD facultatif)
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
 

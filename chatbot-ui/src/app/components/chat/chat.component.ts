@@ -5,8 +5,11 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Subscription } from 'rxjs';
+
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { ChatService, ChatReply, MessageMeta, WebResult, WebLogEntry } from '../../services/chat.service';
 import { DocqaService } from '../../services/docqa.service';
+import { ConfirmService } from '../../shared/confirm-dialog/confirm.service';
 
 type Attachment = { file?: File; name: string; type?: string };
 type Msg = {
@@ -20,7 +23,7 @@ type Msg = {
 @Component({
   selector: 'app-chat',
   standalone: true,
-  imports: [CommonModule, FormsModule, HttpClientModule],
+  imports: [CommonModule, FormsModule, HttpClientModule, MatSnackBarModule],
   templateUrl: './chat.component.html',
   styleUrls: ['./chat.component.css'],
 })
@@ -48,7 +51,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   // Web
   webLoading = false;
 
-  // 👇 WELCOME — uniquement UI (pas dans messages)
+  // WELCOME — uniquement UI
   showWelcomeOverlay = false;
   welcomeText = 'Bonjour ! Comment puis-je vous assister aujourd’hui ?';
   welcomeSuggestions: string[] = [
@@ -66,7 +69,9 @@ export class ChatComponent implements OnInit, OnDestroy {
     private router: Router,
     private http: HttpClient,
     private sanitizer: DomSanitizer,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private snack: MatSnackBar,
+    private confirm: ConfirmService,
   ) {}
 
   ngOnInit(): void {
@@ -80,7 +85,6 @@ export class ChatComponent implements OnInit, OnDestroy {
         if (this.skipNextLoad) { this.skipNextLoad = false; return; }
         this.loadConversation(id);
       } else {
-        // Pas d’ID = nouvelle conv “vide” → overlay d’accueil
         this.updateWelcomeOverlay();
       }
     });
@@ -123,7 +127,7 @@ export class ChatComponent implements OnInit, OnDestroy {
         }
 
         this.messages = mapped;
-        this.updateWelcomeOverlay(); // 👈 WELCOME: affiche si conv réellement vide
+        this.updateWelcomeOverlay();
 
         this.chat.fetchWebLog(this.conversationId, this.ns).subscribe({
           next: (logs: WebLogEntry[]) => {
@@ -143,6 +147,7 @@ export class ChatComponent implements OnInit, OnDestroy {
     });
   }
 
+  // ---------- pièces jointes
   onPickFiles(evt: Event): void {
     const input = evt.target as HTMLInputElement;
     const files = Array.from(input.files ?? []);
@@ -162,9 +167,13 @@ export class ChatComponent implements OnInit, OnDestroy {
     return names;
   }
 
+  // ---------- dictée
   togglePress(): void { if (this.recording) this.stopDictation(); else this.startDictation(); }
   private startDictation(): void {
-    if (!this.speechSupported) { alert('Dictée non supportée par ce navigateur.'); return; }
+    if (!this.speechSupported) {
+      this.snack.open('Dictée non supportée par ce navigateur.', 'OK', { duration: 2500 });
+      return;
+    }
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     this.sr = new SR(); this.sr.lang = this.speechLang; this.sr.continuous = true; this.sr.interimResults = true;
     this.srFinal = ''; this.srInterim = ''; this.recording = true;
@@ -181,11 +190,12 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
   private stopDictation(): void { try { this.sr?.stop(); } catch {} this.recording = false; this.srInterim = ''; }
 
+  // ---------- envoi
   async send(): Promise<void> {
     const msg = this.text.trim();
     if (!msg && this.draft.length === 0) return;
 
-    this.showWelcomeOverlay = false; // 👈 WELCOME: on masque l’accueil dès que l’utilisateur envoie
+    this.showWelcomeOverlay = false;
 
     const attachedNow = [...this.draft];
     const docs = await this.ingestAttachments(attachedNow);
@@ -220,13 +230,49 @@ export class ChatComponent implements OnInit, OnDestroy {
     });
   }
 
-  web(): void {
+  // ---------- recherche web (HYBRIDE si docs présents)
+  async web(): Promise<void> {
     const q = this.text.trim();
-    if (!q) return;
-    this.messages.push({ role: 'user', content: q, usedDocs: [] });
+    if (!q && this.draft.length === 0) return;
+
+    // 1) ingérer un éventuel brouillon et récupérer ses noms de docs
+    const attachedNow = [...this.draft];
+    const hasDraft = attachedNow.length > 0;
+    let docsFromDraft: string[] = [];
+    if (hasDraft) {
+      docsFromDraft = await this.ingestAttachments(attachedNow);
+    }
+
+    // 2) récupérer les docs déjà utilisés dans la conversation
+    const docsFromHistory = Array.from(
+      new Set((this.messages || []).flatMap(m => m.usedDocs || []).filter(Boolean))
+    );
+
+    // 3) liste finale
+    const docs = Array.from(new Set([...(docsFromDraft || []), ...(docsFromHistory || [])]));
+
+    // push message utilisateur (avec chips éventuels)
+    this.messages.push({
+      role: 'user',
+      content: q || 'De quoi parle ce fichier ?',
+      attachments: hasDraft ? attachedNow : undefined,
+      usedDocs: []
+    });
+    if (hasDraft) {
+      const attachmentsMeta = attachedNow.map(a => ({ name: a.name, type: a.type })) as MessageMeta['attachments'];
+      this.chat.setMeta(this.conversationId, this.keyOf('user', q || 'De quoi parle ce fichier ?'), { attachments: attachmentsMeta });
+    }
+
+    // reset UI
     this.text = '';
+    this.draft = [];
     this.webLoading = true;
-    this.chat.externalAnswer(q, 5, this.conversationId, this.ns).subscribe({
+
+    // appel — hybrid si des docs existent
+    this.chat.externalAnswer(q || 'De quoi parle ce fichier ?', 5, this.conversationId, this.ns, {
+      hybrid: docs.length > 0,
+      docs
+    }).subscribe({
       next: (res) => {
         const reply = res?.reply || '(réponse vide)';
         const citations = res?.citations || [];
@@ -247,15 +293,15 @@ export class ChatComponent implements OnInit, OnDestroy {
     window.open(url, '_blank', 'noopener');
   }
 
+  // ---------- rendu markdown light
   private escapeHtml(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&quot;').replace(/'/g, '&#39;');
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
   private renderInline(s: string): string {
     s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     s = s.replace(/(^|[\s(])\*(?!\s)([^*]+?)\*(?=[\s).,;!?]|$)/g, '$1<em>$2</em>');
     return s;
   }
-
   private mdToHtml(md: string): string {
     const sourceSplit = md.split(/\n\s*Sources:/i);
     const mainContent = sourceSplit[0];
@@ -283,17 +329,75 @@ export class ChatComponent implements OnInit, OnDestroy {
     flushList();
     return out.join('');
   }
-
   asHtml(content: string): SafeHtml {
     return this.sanitizer.bypassSecurityTrustHtml(this.mdToHtml(content || ''));
   }
 
-  // 👇 WELCOME — helpers
+  // ---------- welcome
   private updateWelcomeOverlay(): void {
     this.showWelcomeOverlay = (this.messages.length === 0);
     this.cdr.detectChanges();
   }
-  useSuggestion(s: string): void {
-    this.text = s;
+  useSuggestion(s: string): void { this.text = s; }
+
+  // ---------- confirmations pro (modales Material)
+  onDeleteConversationRequested(): void {
+    if (!this.conversationId) return;
+    this.confirm.open({
+      title: 'Supprimer la conversation',
+      message: 'Voulez-vous supprimer définitivement cette conversation ?',
+      confirmText: 'Supprimer',
+      cancelText: 'Annuler',
+      tone: 'danger'
+    }).subscribe((ok: boolean) => {
+      if (!ok) return;
+      this.chat.deleteConversation(this.conversationId!).subscribe({
+        next: () => {
+          this.messages = [];
+          this.conversationId = null;
+          this.showWelcomeOverlay = true;
+          this.router.navigate(['/chat']);
+          this.chat.notifyHistoryUpdate();
+          this.snack.open('Conversation supprimée', 'OK', { duration: 1500 });
+        },
+        error: () => this.snack.open('Échec de suppression.', 'OK', { duration: 2500 })
+      });
+    });
+  }
+
+  onDeleteAllRequested(): void {
+    this.confirm.open({
+      title: 'Purger l’historique',
+      message: 'Supprimer tout  ?',
+      confirmText: 'Tout supprimer',
+      cancelText: 'Annuler',
+      tone: 'danger'
+    }).subscribe((ok: boolean) => {
+      if (!ok) return;
+
+      const svc: any = this.chat as any;
+      if (typeof svc.deleteAll === 'function') {
+        svc.deleteAll(this.ns).subscribe({
+          next: () => {
+            this.messages = [];
+            this.conversationId = null;
+            this.showWelcomeOverlay = true;
+            this.router.navigate(['/chat'], { replaceUrl: true });
+            this.chat.notifyHistoryUpdate();
+            this.snack.open('Historique purgé', 'OK', { duration: 1500 });
+          },
+          error: () => this.snack.open('Échec de la purge.', 'OK', { duration: 2500 })
+        });
+        return;
+      }
+
+      // Fallback UI si pas d’API
+      this.messages = [];
+      this.conversationId = null;
+      this.showWelcomeOverlay = true;
+      this.router.navigate(['/chat'], { replaceUrl: true });
+      this.chat.notifyHistoryUpdate();
+      this.snack.open('Historique réinitialisé localement', 'OK', { duration: 1500 });
+    });
   }
 }

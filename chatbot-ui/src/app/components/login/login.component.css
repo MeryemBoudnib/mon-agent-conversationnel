@@ -96,25 +96,33 @@ form{ display:grid; gap:14px; }
   border-color: color-mix(in oklab, var(--auth-input-border), var(--link-color) 50%);
 }
 
+/* Lien “oublié” aligné à droite */
+.row-actions{ display:flex; justify-content:flex-end; margin-top:6px; }
+.forgot{
+  font-size: 13px;
+  color: var(--auth-link, var(--link-color));
+  text-decoration: underline;
+}
+
 /* ---------- Bouton principal (ALIGNEMENT FIXÉ) ---------- */
 .btn{
-  display: inline-flex;                /* ⬅️ au lieu d’inline-grid */
-  align-items: center;                 /* ⬅️ centre vertical */
-  justify-content: center;             /* ⬅️ centre horizontal */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   gap: 10px;
-  height: 44px;                        /* hauteur constante */
-  padding: 0 16px;                     /* padding horizontal */
+  height: 44px;
+  padding: 0 16px;
   border: none; border-radius:12px;
-  font-weight:700; line-height:1;      /* ⬅️ supprime l’effet baseline */
+  font-weight:700; line-height:1;
   cursor:pointer;
   transition: transform .05s, box-shadow .2s, opacity .2s;
 }
 .btn .material-icons{
   font-size:20px;
-  line-height:1;                       /* ⬅️ empêche le décalage vertical */
-  display:block;                       /* ⬅️ enlève la ligne de base inline */
+  line-height:1;
+  display:block;
 }
-.btn span{ line-height:1; display:block; }      /* ⬅️ texte correctement centré */
+.btn span{ line-height:1; display:block; }
 
 .btn.primary{
   background: linear-gradient(135deg, var(--cgpt-accent,#10a37f), var(--cgpt-accent-end,#505d81));

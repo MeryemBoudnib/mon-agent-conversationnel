@@ -1,4 +1,3 @@
-// src/app/app.routes.ts
 import { Routes } from '@angular/router';
 
 import { LoginComponent } from './components/login/login.component';
@@ -11,21 +10,50 @@ import { AdminDashboardComponent } from './components/admin-dashboard/admin-dash
 import { authGuard } from './auth.guard';
 import { AdminGuard } from './auth/admin.guard';
 import { AlreadyAuthGuard } from './auth/already-auth.guard';
+import { UserOnlyGuard } from './guards/user-only.guard';
 
 export const routes: Routes = [
+  // Pages publiques
   { path: 'login', component: LoginComponent, canActivate: [AlreadyAuthGuard] },
   { path: 'register', component: RegisterComponent, canActivate: [AlreadyAuthGuard] },
 
-  // 👇 Chat principal (là où on uploade aussi)
-  { path: '', pathMatch: 'full', component: ChatComponent, canActivate: [authGuard] },
- { path: 'chat/:id', component: ChatComponent, canActivate: [authGuard] },
-  { path: 'new', component: ChatComponent, canActivate: [authGuard] }, // ✅ bouton "Nouvelle conv."
-  { path: 'history', component: HistoryComponent, canActivate: [authGuard] },
-  { path: 'settings', component: SettingsComponent, canActivate: [authGuard] },
+  // Redirige la racine vers /chat (évite la duplication)
+  { path: '', pathMatch: 'full', redirectTo: 'chat' },
 
-  // Admin
+  // Espace utilisateur (auth obligatoire + interdit aux admins)
+  { path: 'chat', component: ChatComponent, canActivate: [authGuard, UserOnlyGuard] },
+  { path: 'chat/:id', component: ChatComponent, canActivate: [authGuard, UserOnlyGuard] },
+  { path: 'new', component: ChatComponent, canActivate: [authGuard, UserOnlyGuard] },
+
+  { path: 'history', component: HistoryComponent, canActivate: [authGuard, UserOnlyGuard] },
+  { path: 'settings', component: SettingsComponent, canActivate: [authGuard, UserOnlyGuard] },
+
+  // Users (lazy)
+  {
+    path: 'admin/users',
+    loadComponent: () =>
+      import('./components/users-page/users-page.component')
+        .then(m => m.UsersPageComponent),
+    canActivate: [authGuard, AdminGuard],
+  },
+
+  // Reset / Password (lazy)
+  {
+    path: 'reset-password',
+    loadComponent: () =>
+      import('./auth/reset-password/reset-password.component')
+        .then(m => m.ResetPasswordComponent),
+  },
+  {
+    path: 'password',
+    loadComponent: () =>
+      import('./auth/reset-password/reset-password.component')
+        .then(m => m.ResetPasswordComponent),
+  },
+
+  // Dashboard Admin
   { path: 'admin', component: AdminDashboardComponent, canActivate: [authGuard, AdminGuard] },
 
-  // fallback
-  { path: '**', redirectTo: '' }
+  // Fallback
+  { path: '**', redirectTo: 'chat' }
 ];

@@ -2,26 +2,65 @@
   <!-- Header -->
   <div class="header">
     <h2>Admin Dashboard</h2>
-    <div class="right">
-      <button mat-stroked-button (click)="toggleTheme()">
+
+    <!-- MENU PROFIL -->
+    <button mat-button class="profile-btn" [matMenuTriggerFor]="adminMenu" aria-label="Menu administrateur">
+      <span class="avatar">{{ initials }}</span>
+      <mat-icon>expand_more</mat-icon>
+    </button>
+
+    <mat-menu #adminMenu="matMenu">
+      <button mat-menu-item (click)="toggleTheme()">
         <mat-icon>{{ theme === 'dark' ? 'light_mode' : 'dark_mode' }}</mat-icon>
-        {{ theme === 'dark' ? 'Light' : 'Dark' }}
+        <span>{{ theme === 'dark' ? 'Passer en clair' : 'Passer en sombre' }}</span>
       </button>
-    </div>
+
+      <mat-divider></mat-divider>
+
+      <button mat-menu-item [routerLink]="['/admin/users']">
+        <mat-icon>group</mat-icon>
+        <span>Utilisateurs</span>
+      </button>
+
+      <!-- Exemple d’item futur :
+      <button mat-menu-item [routerLink]="['/admin/settings']">
+        <mat-icon>settings</mat-icon>
+        <span>Paramètres</span>
+      </button>
+      -->
+
+      <mat-divider></mat-divider>
+
+      <button mat-menu-item (click)="logout()">
+        <mat-icon color="warn">logout</mat-icon>
+        <span>Déconnexion</span>
+      </button>
+    </mat-menu>
   </div>
 
   <!-- KPIs -->
   <div class="kpis">
     <mat-card class="kpi">
-      <div class="kpi-title">Utilisateurs</div>
+      <div class="kpi-head">
+        <span class="dot"></span>
+        <span class="kpi-title">Utilisateurs</span>
+      </div>
       <div class="kpi-value">{{ stats.users }}</div>
     </mat-card>
+
     <mat-card class="kpi">
-      <div class="kpi-title">Conversations actives</div>
+      <div class="kpi-head">
+        <span class="dot"></span>
+        <span class="kpi-title">Conversations actives</span>
+      </div>
       <div class="kpi-value">{{ stats.activeConversations }}</div>
     </mat-card>
+
     <mat-card class="kpi">
-      <div class="kpi-title">Durée moy. conv (min)</div>
+      <div class="kpi-head">
+        <span class="dot"></span>
+        <span class="kpi-title">Durée moy. conv (min)</span>
+      </div>
       <div class="kpi-value">{{ stats.avgConvMin | number:'1.0-1' }}</div>
     </mat-card>
   </div>
@@ -31,11 +70,13 @@
     <div class="range-row">
       <label>Du : <input type="date" [(ngModel)]="fromISO" /></label>
       <label>Au : <input type="date" [(ngModel)]="toISO" /></label>
-      <button mat-raised-button color="primary" (click)="applyRange()">Appliquer</button>
+      <button mat-raised-button color="primary" class="btn-apply" (click)="applyRange()">
+        Appliquer
+      </button>
     </div>
   </mat-card>
 
-  <!-- Inscriptions (Apex area) -->
+  <!-- Inscriptions -->
   <mat-card class="section">
     <div class="section-title">Inscriptions par jour</div>
     <apx-chart
@@ -49,17 +90,16 @@
     ></apx-chart>
   </mat-card>
 
-  <!-- Latence + IA controls à droite du titre -->
+  <!-- Latence + Synthèse / Nowcast -->
   <mat-card class="section">
     <div class="section-title row">
       <span>Latence du bot (p50/p90/moyenne, s)</span>
       <div class="tools">
-        <span class="slo">
-          SLO P90 (s) :
+        <span class="slo">SLO P90 (s) :
           <input type="number" step="0.1" [(ngModel)]="sloP90">
         </span>
-        <button mat-stroked-button color="primary" (click)="runSummary()">Résumé IA</button>
-        <button mat-stroked-button color="accent"  (click)="runForecast()">Prévision 1h</button>
+        <button mat-stroked-button color="primary" (click)="runSummary()">Synthèse SRE</button>
+        <button mat-stroked-button color="accent"  (click)="runForecast()">Nowcast 1h</button>
       </div>
     </div>
 
@@ -72,49 +112,71 @@
       [legend]="latLegend"
     ></apx-chart>
 
-    <!-- Résumé IA (si demandé) -->
-    <div class="ia-summary" *ngIf="iaSummary?.summary_text">
-      <h4>Résumé IA</h4>
-      <pre>{{ iaSummary?.summary_text }}</pre>
+    <!-- Synthèse SRE -->
+    <div class="ai-brief" *ngIf="iaSummary?.summary_text">
+      <div class="brief-head">
+        <div>
+          <div class="title">Synthèse SRE</div>
+          <div class="subtitle">
+            Fenêtre: {{ fromISO }} → {{ toISO }} • Indicateur clé: Latence P90
+          </div>
+        </div>
+        <div class="meta">
+          <span class="pill">SLO cible: P90 ≤ {{ sloP90 }}s</span>
+          <span class="pill">Statut: {{ iaStatus }}</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <h4>Analyse</h4>
+        <div class="md" [innerHTML]="summaryHTML"></div>
+      </div>
     </div>
 
-    <!-- Prévision IA (table) -->
+    <!-- Nowcast -->
     <div class="ia-forecast" *ngIf="iaForecast?.points?.length">
-      <h4>Prévision (prochaine heure) — SLO p90={{ iaForecast?.slo_p90 }}</h4>
+      <h4>Nowcast (prochaine heure) — SLO p90={{ iaForecast?.slo_p90 }}</h4>
       <div class="risk-badge" [class.alert]="iaForecast?.alert">
-        Risque max de dépasser le SLO : {{ (iaForecast?.overall_max_prob || 0) | percent:'1.0-0' }}
+        Risque max de dépasser le SLO :
+        <strong>{{ (iaForecast?.overall_max_prob || 0) | percent:'1.0-0' }}</strong>
       </div>
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Heure</th><th>P90 prédit</th><th>IC bas–haut</th><th>Risque</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let p of iaForecast!.points">
-            <td>{{ p.ts | date:'HH:mm' }}</td>
-            <td>{{ p.p90_pred | number:'1.2-2' }} s</td>
-            <td>{{ p.low | number:'1.2-2' }} – {{ p.high | number:'1.2-2' }} s</td>
-            <td><span class="chip" [ngClass]="p.risk_level">{{ p.risk_level }}</span></td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Heure</th><th>P90 prédit</th><th>IC bas–haut</th><th>Risque</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let p of iaForecast!.points">
+              <td>{{ p.ts | date:'HH:mm' }}</td>
+              <td>{{ p.p90_pred | number:'1.2-2' }} s</td>
+              <td>{{ p.low | number:'1.2-2' }} – {{ p.high | number:'1.2-2' }} s</td>
+              <td><span class="chip" [ngClass]="p.risk_level">{{ p.risk_level }}</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </mat-card>
 
-  <!-- Messages -->
+  <!-- Messages (ApexCharts) -->
   <mat-card class="section">
     <div class="section-title">Messages par jour</div>
-    <div class="bars">
-      <div class="bar" *ngFor="let p of msgsPerDay"
-           [style.height.%]="(p.msgs / maxPerDay) * 100"
-           [attr.title]="p.d + ' : ' + p.msgs">
-        <span class="bar-label">{{ p.d }}</span>
-        <span class="bar-value">{{ p.msgs }}</span>
-      </div>
-    </div>
+    <apx-chart
+      [series]="msgsSeriesChart"
+      [chart]="msgsChart"
+      [xaxis]="msgsXAxis"
+      [yaxis]="msgsYAxis"
+      [plotOptions]="msgsPlotOptions"
+      [dataLabels]="msgsDataLabels"
+      [fill]="msgsFill"
+      [stroke]="msgsStroke"
+      [grid]="msgsGrid"
+      [theme]="msgsTheme"
+      [tooltip]="msgsTooltip"
+    ></apx-chart>
   </mat-card>
-
   <!-- Heatmap -->
   <mat-card class="section">
     <div class="section-title">Heatmap (jours x heures)</div>
@@ -127,184 +189,6 @@
       </div>
     </div>
   </mat-card>
-
-  <!-- Users -->
-  <mat-card class="section">
-    <div class="section-title">Utilisateurs</div>
-    <table class="table">
-      <thead>
-        <tr><th>ID</th><th>Email</th><th>Rôle</th><th>Actions</th></tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let u of users">
-          <td>{{ u.id }}</td>
-          <td>{{ u.email }}</td>
-          <td>{{ u.role }}</td>
-          <td class="nowrap">
-            <button mat-stroked-button color="primary" (click)="setRole(u.id,'ADMIN')" *ngIf="u.role==='USER'">
-              <mat-icon>arrow_upward</mat-icon> ADMIN
-            </button>
-            <button mat-stroked-button color="warn" (click)="setRole(u.id,'USER')" *ngIf="u.role==='ADMIN'">
-              <mat-icon>arrow_downward</mat-icon> USER
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </mat-card>
-</div>
-<div class="dashboard" [ngClass]="theme">
-  <!-- Header -->
-  <div class="header">
-    <h2>Admin Dashboard</h2>
-    <div class="right">
-      <button mat-stroked-button (click)="toggleTheme()">
-        <mat-icon>{{ theme === 'dark' ? 'light_mode' : 'dark_mode' }}</mat-icon>
-        {{ theme === 'dark' ? 'Light' : 'Dark' }}
-      </button>
-    </div>
-  </div>
-
-  <!-- KPIs -->
-  <div class="kpis">
-    <mat-card class="kpi">
-      <div class="kpi-title">Utilisateurs</div>
-      <div class="kpi-value">{{ stats.users }}</div>
-    </mat-card>
-    <mat-card class="kpi">
-      <div class="kpi-title">Conversations actives</div>
-      <div class="kpi-value">{{ stats.activeConversations }}</div>
-    </mat-card>
-    <mat-card class="kpi">
-      <div class="kpi-title">Durée moy. conv (min)</div>
-      <div class="kpi-value">{{ stats.avgConvMin | number:'1.0-1' }}</div>
-    </mat-card>
-  </div>
-
-  <!-- Période -->
-  <mat-card class="range-card">
-    <div class="range-row">
-      <label>Du : <input type="date" [(ngModel)]="fromISO" /></label>
-      <label>Au : <input type="date" [(ngModel)]="toISO" /></label>
-      <button mat-raised-button color="primary" (click)="applyRange()">Appliquer</button>
-    </div>
-  </mat-card>
-
-  <!-- Inscriptions (Apex area) -->
-  <mat-card class="section">
-    <div class="section-title">Inscriptions par jour</div>
-    <apx-chart
-      [series]="signupsSeries"
-      [chart]="signupsChart"
-      [xaxis]="signupsXAxis"
-      [stroke]="signupsStroke"
-      [fill]="signupsFill"
-      [dataLabels]="signupsLabels"
-      [legend]="signupsLegend"
-    ></apx-chart>
-  </mat-card>
-
-  <!-- Latence + IA controls à droite du titre -->
-  <mat-card class="section">
-    <div class="section-title row">
-      <span>Latence du bot (p50/p90/moyenne, s)</span>
-      <div class="tools">
-        <span class="slo">
-          SLO P90 (s) :
-          <input type="number" step="0.1" [(ngModel)]="sloP90">
-        </span>
-        <button mat-stroked-button color="primary" (click)="runSummary()">Résumé IA</button>
-        <button mat-stroked-button color="accent"  (click)="runForecast()">Prévision 1h</button>
-      </div>
-    </div>
-
-    <apx-chart
-      [series]="latSeries"
-      [chart]="latChart"
-      [xaxis]="latXAxis"
-      [stroke]="latStroke"
-      [dataLabels]="latLabels"
-      [legend]="latLegend"
-    ></apx-chart>
-
-    <!-- Résumé IA (si demandé) -->
-    <div class="ia-summary" *ngIf="iaSummary?.summary_text">
-      <h4>Résumé IA</h4>
-      <pre>{{ iaSummary?.summary_text }}</pre>
-    </div>
-
-    <!-- Prévision IA (table) -->
-    <div class="ia-forecast" *ngIf="iaForecast?.points?.length">
-      <h4>Prévision (prochaine heure) — SLO p90={{ iaForecast?.slo_p90 }}</h4>
-      <div class="risk-badge" [class.alert]="iaForecast?.alert">
-        Risque max de dépasser le SLO : {{ (iaForecast?.overall_max_prob || 0) | percent:'1.0-0' }}
-      </div>
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Heure</th><th>P90 prédit</th><th>IC bas–haut</th><th>Risque</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let p of iaForecast!.points">
-            <td>{{ p.ts | date:'HH:mm' }}</td>
-            <td>{{ p.p90_pred | number:'1.2-2' }} s</td>
-            <td>{{ p.low | number:'1.2-2' }} – {{ p.high | number:'1.2-2' }} s</td>
-            <td><span class="chip" [ngClass]="p.risk_level">{{ p.risk_level }}</span></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </mat-card>
-
-  <!-- Messages -->
-  <mat-card class="section">
-    <div class="section-title">Messages par jour</div>
-    <div class="bars">
-      <div class="bar" *ngFor="let p of msgsPerDay"
-           [style.height.%]="(p.msgs / maxPerDay) * 100"
-           [attr.title]="p.d + ' : ' + p.msgs">
-        <span class="bar-label">{{ p.d }}</span>
-        <span class="bar-value">{{ p.msgs }}</span>
-      </div>
-    </div>
-  </mat-card>
-
-  <!-- Heatmap -->
-  <mat-card class="section">
-    <div class="section-title">Heatmap (jours x heures)</div>
-    <div class="heatmap">
-      <div class="heat-row" *ngFor="let row of heat; let i = index">
-        <div class="heat-day">{{ weekDayName(i) }}</div>
-        <div class="heat-cell" *ngFor="let val of row; let h = index"
-             [style.opacity]="maxHeat ? (val / maxHeat) : 0"
-             [attr.title]="weekDayName(i) + ' ' + h + 'h: ' + val"></div>
-      </div>
-    </div>
-  </mat-card>
-
-  <!-- Users -->
-  <mat-card class="section">
-    <div class="section-title">Utilisateurs</div>
-    <table class="table">
-      <thead>
-        <tr><th>ID</th><th>Email</th><th>Rôle</th><th>Actions</th></tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let u of users">
-          <td>{{ u.id }}</td>
-          <td>{{ u.email }}</td>
-          <td>{{ u.role }}</td>
-          <td class="nowrap">
-            <button mat-stroked-button color="primary" (click)="setRole(u.id,'ADMIN')" *ngIf="u.role==='USER'">
-              <mat-icon>arrow_upward</mat-icon> ADMIN
-            </button>
-            <button mat-stroked-button color="warn" (click)="setRole(u.id,'USER')" *ngIf="u.role==='ADMIN'">
-              <mat-icon>arrow_downward</mat-icon> USER
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </mat-card>
+  <!-- NOTE: la grosse table Users a été déplacée sur /admin/users -->
+  <!-- Tu peux garder ici un petit aperçu + bouton "Voir tout" si tu veux -->
 </div>

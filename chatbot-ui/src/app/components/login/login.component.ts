@@ -3,6 +3,7 @@ import { Router, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../auth/auth.service';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 // GSAP
 import { gsap } from 'gsap';
@@ -14,7 +15,12 @@ gsap.registerPlugin(TextPlugin);
   standalone: true,
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.css'],
-  imports: [CommonModule, FormsModule, RouterModule]
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterModule,
+    MatSnackBarModule, // nécessaire pour afficher le snackbar
+  ]
 })
 export class LoginComponent implements AfterViewInit, OnDestroy {
   email = '';
@@ -26,7 +32,11 @@ export class LoginComponent implements AfterViewInit, OnDestroy {
 
   private tl?: gsap.core.Timeline;
 
-  constructor(private auth: AuthService, private router: Router) {}
+  constructor(
+    private auth: AuthService,
+    private router: Router,
+    private snack: MatSnackBar, // injection snackbar
+  ) {}
 
   ngAfterViewInit(): void {
     const words = ['plats', 'cadeaux', 'week-end', 'jeux', 'posts LinkedIn'];
@@ -35,17 +45,15 @@ export class LoginComponent implements AfterViewInit, OnDestroy {
 
     gsap.to(c, { opacity: 0.2, repeat: -1, yoyo: true, duration: 0.6, ease: 'power1.inOut' });
 
-    // timeline qui “tape” les mots en boucle
     const tl = gsap.timeline({ repeat: -1, repeatDelay: 0.5 });
     words.forEach((w) => {
-      tl.to(t, { duration: 1, text: w, ease: 'none' }).to({}, { duration: 0.9 }); // petite pause
+      tl.to(t, { duration: 1, text: w, ease: 'none' })
+        .to({}, { duration: 0.9 });
     });
     this.tl = tl;
   }
 
-  ngOnDestroy(): void {
-    this.tl?.kill();
-  }
+  ngOnDestroy(): void { this.tl?.kill(); }
 
   login(): void {
     if (this.loading) return;
@@ -54,9 +62,28 @@ export class LoginComponent implements AfterViewInit, OnDestroy {
     if (!email || !password) return;
 
     this.loading = true;
+
     this.auth.login(email, password).subscribe({
-      next: () => { this.loading = false; this.router.navigate(['/chat']); },
-      error: () => { this.loading = false; alert('Identifiants invalides'); }
+      next: (res) => {
+        this.loading = false;
+
+        // ➜ IMPORTANT : si le backend renvoie active=false, on affiche l’alerte et on ne navigue pas
+        if (res.active === false) {
+          this.snack.open(
+            'Votre compte est désactivé. Veuillez contacter l’administrateur.',
+            'OK',
+            { duration: 4000 }
+          );
+          return;
+        }
+
+        if (res.role === 'ADMIN') this.router.navigate(['/admin']);
+        else this.router.navigate(['/chat']);
+      },
+      error: () => {
+        this.loading = false;
+        this.snack.open('Identifiants invalides', 'OK', { duration: 2000 });
+      }
     });
   }
 }

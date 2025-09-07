@@ -1,12 +1,11 @@
+// src/main/java/com/chat_orchestrator/chat_orchestrator/service/AdminService.java
 package com.chat_orchestrator.chat_orchestrator.service;
 
 import com.chat_orchestrator.chat_orchestrator.dto.*;
 import com.chat_orchestrator.chat_orchestrator.entity.Conversation;
 import com.chat_orchestrator.chat_orchestrator.entity.Role;
 import com.chat_orchestrator.chat_orchestrator.entity.User;
-import com.chat_orchestrator.chat_orchestrator.repository.ConversationRepository;
-import com.chat_orchestrator.chat_orchestrator.repository.MessageRepository;
-import com.chat_orchestrator.chat_orchestrator.repository.UserRepository;
+import com.chat_orchestrator.chat_orchestrator.repository.*;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -39,7 +38,8 @@ public class AdminService {
                         u.getRole(),
                         conversationRepository.countByOwner(u),
                         u.getCreatedAt(),
-                        u.getBannedUntil()
+                        u.getBannedUntil(),
+                        (u.getActive() == null ? Boolean.TRUE : u.getActive())
                 ))
                 .sorted(Comparator.comparing(AdminUserDTO::id))
                 .toList();
@@ -51,6 +51,25 @@ public class AdminService {
                 .orElseThrow(() -> new RuntimeException("Utilisateur introuvable"));
         u.setRole(role);
         userRepository.save(u);
+    }
+
+    @Transactional
+    public boolean setActive(Long userId, boolean active) {
+        return userRepository.findById(userId).map(u -> {
+            u.setActive(active);
+            userRepository.save(u);
+            return true;
+        }).orElse(false);
+    }
+
+    @Transactional
+    public boolean deleteUser(Long userId) {
+        return userRepository.findById(userId).map(u -> {
+            conversationRepository.findByOwnerOrderByDateDesc(u)
+                    .forEach(c -> conversationRepository.deleteById(c.getId()));
+            userRepository.delete(u);
+            return true;
+        }).orElse(false);
     }
 
     public AdminStatsDTO stats() {
@@ -86,7 +105,8 @@ public class AdminService {
                 .toList();
     }
 
-    @Transactional public void deleteConversation(Long id) { conversationRepository.deleteById(id); }
+    @Transactional
+    public void deleteConversation(Long id) { conversationRepository.deleteById(id); }
 
     @Transactional
     public void deleteConversationsByUser(Long userId) {
@@ -110,7 +130,6 @@ public class AdminService {
 
     // ------- SIGNUPS -------
     public List<UserSignupDTO> signupsPerDay(LocalDate from, LocalDate to) {
-        // utilise la native query et mappe vers DTO
         return userRepository.findSignupsPerDayNative(from, to).stream()
                 .map(row -> new UserSignupDTO(
                         ((java.sql.Date) row.get("date")).toLocalDate(),
@@ -127,8 +146,6 @@ public class AdminService {
         String temp = generateTempPassword(12);
         u.setPassword(passwordEncoder.encode(temp));
         userRepository.save(u);
-        // TODO: envoyer email / notification au user avec le lien de reset ou MDP temporaire
-        // Pour l’instant, on pourrait logger côté serveur si besoin.
         System.out.println("[ADMIN] Password reset for " + u.getEmail() + " temp=" + temp);
     }
 
@@ -136,7 +153,6 @@ public class AdminService {
     public void banUser(Long userId, LocalDate until) {
         User u = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Utilisateur introuvable"));
-        // on fixe à 23:59:59 pour la date fournie
         Instant end = until.atTime(LocalTime.MAX).atZone(ZoneId.systemDefault()).toInstant();
         u.setBannedUntil(end);
         userRepository.save(u);
@@ -164,15 +180,28 @@ public class AdminService {
         return header + body + (body.isEmpty() ? "" : "\n");
     }
 
+    // ------- LATENCE (implémentation réelle) -------
+    public List<BotLatencyRowDTO> latencyWindow(Instant from, Instant to) {
+        var rows = messageRepository.aggregateLatencyPerMinute(from, to);
+        if (rows == null || rows.isEmpty()) return List.of();
+
+        return rows.stream()
+                .map(r -> new BotLatencyRowDTO(
+                        Optional.ofNullable(r.getBucketMillis()).orElse(0L),
+                        Optional.ofNullable(r.getP50()).orElse(0d),
+                        Optional.ofNullable(r.getP90()).orElse(0d),
+                        Optional.ofNullable(r.getAvg()).orElse(0d),
+                        Optional.ofNullable(r.getSamples()).orElse(0L)
+                ))
+                .toList();
+    }
+
     // util
     private static final String ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789@$!";
-
     private String generateTempPassword(int len) {
         SecureRandom rnd = new SecureRandom();
         byte[] b = new byte[len];
-        for (int i = 0; i < len; i++) {
-            b[i] = (byte) ALPHABET.charAt(rnd.nextInt(ALPHABET.length()));
-        }
+        for (int i = 0; i < len; i++) b[i] = (byte) ALPHABET.charAt(rnd.nextInt(ALPHABET.length()));
         return new String(b, StandardCharsets.US_ASCII);
     }
 }

@@ -22,23 +22,36 @@
         class="conv-item"
         [class.active]="conv.id === currentConversationId"
         (click)="selectConversation(conv.id)">
-        
+
       <mat-icon>{{ conv.id === currentConversationId ? 'forum' : 'chat_bubble' }}</mat-icon>
-      
+
       <span *ngIf="isExpanded">{{ conv.title }}</span>
-      
+
+      <!-- Bouton menu (⋮) -->
       <button mat-icon-button
-              class="delete-btn"
+              class="menu-btn"
               *ngIf="isExpanded"
-              matTooltip="Supprimer"
-              (click)="deleteConversation(conv.id); $event.stopPropagation()">
-        <mat-icon>delete_outline</mat-icon>
+              [matMenuTriggerFor]="menuConv"
+              (click)="$event.stopPropagation()">
+        <mat-icon>more_vert</mat-icon>
       </button>
+
+      <!-- Menu contextuel par conversation -->
+      <mat-menu #menuConv="matMenu">
+        <button mat-menu-item (click)="renameConversation(conv); $event.stopPropagation()">
+          <mat-icon>edit</mat-icon>
+          <span>Modifier</span>
+        </button>
+        <button mat-menu-item (click)="deleteConversation(conv.id); $event.stopPropagation()">
+          <mat-icon>delete_outline</mat-icon>
+          <span>Supprimer</span>
+        </button>
+      </mat-menu>
     </li>
   </ul>
 
   <!-- ✅ MODIFIÉ: Structure correcte restaurée -->
   <div class="bottom-group">
-  
+    
   </div>
 </nav>

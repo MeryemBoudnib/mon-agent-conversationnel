@@ -69,11 +69,23 @@ mat-divider { border-color: rgba(255, 255, 255, 0.1); margin: 0 16px; }
 }
 .conv-item.active span { color: var(--text-secondary); }
 
+/* Ancien bouton corbeille (conservé, non utilisé) */
 .delete-btn {
   background-color: transparent; color: var(--text-muted); position: absolute;
   right: 8px; opacity: 0; transition: opacity 0.2s ease;
 }
 .conv-item:hover .delete-btn { opacity: 1; }
+
+/* Nouveau bouton menu ⋮ */
+.menu-btn {
+  background-color: transparent;
+  color: var(--text-muted);
+  position: absolute;
+  right: 8px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.conv-item:hover .menu-btn { opacity: 1; }
 
 /* ─── Groupe du bas ─── */
 .bottom-group { 
@@ -105,6 +117,7 @@ mat-divider { border-color: rgba(255, 255, 255, 0.1); margin: 0 16px; }
   color: var(--settings-btn-solo-icon) !important;
   margin-right: 12px;
 }
+.delete-btn .mat-icon { font-variation-settings: 'OPSZ' 20, 'wght' 500; } /* Material Symbols plus net */
 
 /* Scrollbar */
 .conv-list::-webkit-scrollbar { width: 6px; }

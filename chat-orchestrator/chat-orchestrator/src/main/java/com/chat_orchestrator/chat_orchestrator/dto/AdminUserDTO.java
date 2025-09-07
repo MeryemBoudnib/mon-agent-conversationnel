@@ -1,7 +1,6 @@
 package com.chat_orchestrator.chat_orchestrator.dto;
 
 import com.chat_orchestrator.chat_orchestrator.entity.Role;
-
 import java.time.Instant;
 
 public record AdminUserDTO(
@@ -12,5 +11,6 @@ public record AdminUserDTO(
         Role role,
         Long conversations,
         Instant createdAt,
-        Instant bannedUntil
+        Instant bannedUntil,
+        Boolean active            // ✅ IMPORTANT
 ) {}

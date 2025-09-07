@@ -21,10 +21,7 @@ public class User implements UserDetails {
     private String firstName;
     private String lastName;
 
-    /**
-     * Laisse nullable=true pour éviter l'échec de migration automatique si des lignes existent déjà.
-     * On la remplit en @PrePersist pour les nouveaux enregistrements.
-     */
+    /** Création (laissée nullable pour compat). */
     @Column(updatable = false)
     private Instant createdAt;
 
@@ -36,13 +33,18 @@ public class User implements UserDetails {
     @Enumerated(EnumType.STRING)
     private Role role; // USER, ADMIN
 
-    /** Null = pas banni. Si > now() => banni jusqu'à cette date */
+    /** Null = pas banni. Si > now() => banni jusqu'à cette date. */
     @Column(name = "banned_until")
     private Instant bannedUntil;
+
+    /** Actif/désactivé par l’admin (défaut: TRUE). */
+    @Column(nullable = false)
+    private Boolean active = true;
 
     @PrePersist
     void onCreate() {
         if (this.createdAt == null) this.createdAt = Instant.now();
+        if (this.active == null)    this.active = Boolean.TRUE;
     }
 
     // --- Spring Security ---
@@ -53,5 +55,5 @@ public class User implements UserDetails {
     @Override public boolean isAccountNonExpired() { return true; }
     @Override public boolean isAccountNonLocked() { return true; }
     @Override public boolean isCredentialsNonExpired() { return true; }
-    @Override public boolean isEnabled() { return true; }
+    @Override public boolean isEnabled() { return active == null ? true : active; }
 }

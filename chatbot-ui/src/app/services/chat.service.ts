@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, Subject } from 'rxjs';
-import { map } from 'rxjs/operators'; // ← IMPORTANT pour externalAnswer()
+import { map } from 'rxjs/operators';
+import { environment } from '../../environments/environment';
 
 // --------- Types API existants ----------
 export interface Conversation {
@@ -46,8 +47,19 @@ const PENDING_CONV_ID = 0; // avant d’avoir l’ID réel
 
 @Injectable({ providedIn: 'root' })
 export class ChatService {
-  private readonly API = 'http://localhost:8080/api';
-  private readonly IA  = 'http://localhost:5000';
+  /** Base API: supporte apiUrl/aiUrl ET api/ai, et force le suffixe /api */
+  private readonly API = (() => {
+    const e = environment as any;
+    const base = e.apiUrl ?? e.api ?? 'http://localhost:8080/api';
+    return String(base).endsWith('/api') ? String(base) : `${String(base).replace(/\/+$/, '')}/api`;
+  })();
+
+  /** Base IA: supporte aiUrl ET ai */
+  private readonly IA = (() => {
+    const e = environment as any;
+    const base = e.aiUrl ?? e.ai ?? 'http://localhost:5000';
+    return String(base).replace(/\/+$/, '');
+  })();
 
   readonly historyUpdated$ = new Subject<void>();
 
@@ -80,8 +92,9 @@ export class ChatService {
     return this.http.delete<void>(`${this.API}/conversations/${id}`);
   }
 
-  deleteAllConversations(): Observable<void> {
-    return this.http.delete<void>(`${this.API}/conversations`);
+  /** ❗️Ne purge que MES conversations */
+  deleteAllMine(): Observable<void> {
+    return this.http.delete<void>(`${this.API}/conversations/me`);
   }
 
   notifyHistoryUpdate(): void {
@@ -89,20 +102,35 @@ export class ChatService {
   }
 
   // ============== MCP Web search (pour le bouton Web) ==============
-  externalAnswer(query: string, k = 5, conversationId?: number | null, ns?: string)
-    : Observable<{ reply: string; citations: WebResult[] }> {
+  /**
+   * externalAnswer — peut fonctionner en mode "hybride" si on passe { hybrid: true, docs: [...] }.
+   * Le backend ajoutera alors le sujet du/des doc(s) à la requête web et journalisera /web-log.
+   */
+  externalAnswer(
+    query: string,
+    k = 5,
+    conversationId?: number | null,
+    ns?: string,
+    options?: { hybrid?: boolean; docs?: string[] }
+  ): Observable<{ reply: string; citations: WebResult[] }> {
     const body: any = {
       action: 'external_answer',
       parameters: { query, k }
     };
+    if (options?.hybrid) {
+      body.parameters.hybrid = true;
+    }
+    if (options?.docs?.length) {
+      body.parameters.docs = options.docs;
+    }
     if (conversationId != null) body.conversationId = conversationId;
-    return this.http.post<{ version: string; id: string; status: string; data: { reply: string; citations: WebResult[] } }>(
-      `${this.IA}/mcp/execute`,
-      body,
-      { headers: ns ? { 'X-Doc-NS': ns } : undefined }
-    ).pipe(
-      map(res => (res?.data ?? { reply: 'Aucune réponse', citations: [] }))
-    );
+    return this.http
+      .post<{ version: string; id: string; status: string; data: { reply: string; citations: WebResult[] } }>(
+        `${this.IA}/mcp/execute`,
+        body,
+        { headers: ns ? { 'X-Doc-NS': ns } : undefined }
+      )
+      .pipe(map(res => (res?.data ?? { reply: 'Aucune réponse', citations: [] })));
   }
 
   fetchWebLog(conversationId?: number | null, ns?: string) {
@@ -118,6 +146,14 @@ export class ChatService {
     return this.http.post(`${this.IA}/web-log/migrate`, { toConv: newConvId }, {
       headers: ns ? { 'X-Doc-NS': ns } : undefined
     });
+  }
+  /** Met à jour une conversation (ex: titre) */
+  updateConversation(
+    id: number,
+    patch: Partial<{ title: string; date?: string | number | null }>
+  ) {
+    // Utilise PATCH; si ton backend attend PUT, remplace par this.http.put<Conversation>(...)
+    return this.http.patch<Conversation>(`${this.API}/conversations/${id}`, patch);
   }
 
   // ============== PERSISTENCE MÉTA (chips/usedDocs) ==============

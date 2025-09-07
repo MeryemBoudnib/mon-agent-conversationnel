@@ -1,3 +1,4 @@
+// src/main/java/com/chat_orchestrator/chat_orchestrator/controller/AdminController.java
 package com.chat_orchestrator.chat_orchestrator.controller;
 
 import com.chat_orchestrator.chat_orchestrator.dto.*;
@@ -10,6 +11,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -21,6 +23,28 @@ import java.util.List;
 public class AdminController {
 
     private final AdminService adminService;
+
+    // ------- ACTIONS USERS -------
+    @PostMapping("/users/{id}/active")
+    public ResponseEntity<Void> setActive(@PathVariable Long id, @RequestParam boolean active) {
+        boolean ok = adminService.setActive(id, active);
+        return ok ? ResponseEntity.ok().build() : ResponseEntity.notFound().build();
+    }
+
+    @PutMapping("/users/{id}/active")
+    public ResponseEntity<Void> setActivePut(@PathVariable Long id,
+                                             @RequestBody java.util.Map<String, Object> body) {
+        Object v = body.get("active");
+        boolean active = (v instanceof Boolean b) ? b : Boolean.parseBoolean(String.valueOf(v));
+        boolean ok = adminService.setActive(id, active);
+        return ok ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
+    }
+
+    @DeleteMapping("/users/{id}")
+    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+        boolean ok = adminService.deleteUser(id);
+        return ok ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
+    }
 
     // ------- STATS -------
     @GetMapping("/stats")
@@ -47,10 +71,8 @@ public class AdminController {
     }
 
     @PostMapping("/users/{id}/ban")
-    public ResponseEntity<Void> banUser(@PathVariable Long id,
-                                        @RequestBody BanRequest req) {
-        if (req == null || req.until() == null)
-            return ResponseEntity.badRequest().build();
+    public ResponseEntity<Void> banUser(@PathVariable Long id, @RequestBody BanRequest req) {
+        if (req == null || req.until() == null) return ResponseEntity.badRequest().build();
         adminService.banUser(id, req.until());
         return ResponseEntity.ok().build();
     }
@@ -65,9 +87,7 @@ public class AdminController {
 
     // ------- CONVERSATIONS -------
     @GetMapping("/conversations")
-    public ResponseEntity<List<ConversationSummaryDTO>> conversations(
-            @RequestParam(required = false) Long userId
-    ) {
+    public ResponseEntity<List<ConversationSummaryDTO>> conversations(@RequestParam(required = false) Long userId) {
         return ResponseEntity.ok(adminService.listConversations(userId));
     }
 
@@ -94,7 +114,7 @@ public class AdminController {
         return new ResponseEntity<>(bytes, headers, HttpStatus.OK);
     }
 
-    // ------- DASHBOARD / SIGNUPS -------
+    // ------- SIGNUPS / DASHBOARD -------
     @GetMapping("/signups-per-day")
     public ResponseEntity<List<UserSignupDTO>> signupsPerDay(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
@@ -106,8 +126,15 @@ public class AdminController {
     public ResponseEntity<DashboardDTO> dashboard(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-            @RequestParam(defaultValue = "10") int topN
-    ) {
+            @RequestParam(defaultValue = "10") int topN) {
         return ResponseEntity.ok(adminService.dashboard(from, to, topN));
+    }
+
+    // ------- LATENCE -------
+    @GetMapping("/latency-window")
+    public ResponseEntity<List<BotLatencyRowDTO>> latencyWindow(
+            @RequestParam Instant from,
+            @RequestParam Instant to) {
+        return ResponseEntity.ok(adminService.latencyWindow(from, to));
     }
 }

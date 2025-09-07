@@ -43,6 +43,9 @@ export class AppComponent implements OnInit, OnDestroy {
   avatarUrl: string | null = null;
   isLoggedIn = false;
 
+  // ✅ ajout
+  isAdmin = false;
+
   // 🌙/☀️ Thème
   themeMode: ThemeMode = 'light';
   private mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -72,12 +75,10 @@ export class AppComponent implements OnInit, OnDestroy {
     if (saved) {
       this.themeMode = saved;
     } else {
-      // première fois => suivre système
       this.themeMode = this.mediaQuery.matches ? 'dark' : 'light';
     }
     this.applyTheme(this.themeMode);
 
-    // Réagit si système change (optionnel : on force si pas de préférence sauvegardée)
     this.mediaQuery.addEventListener?.('change', this.onSystemThemeChange);
   }
 
@@ -96,7 +97,6 @@ export class AppComponent implements OnInit, OnDestroy {
   };
 
   private onSystemThemeChange = () => {
-    // si aucun choix enregistré, on suit le système
     if (!localStorage.getItem('theme')) {
       this.setTheme(this.mediaQuery.matches ? 'dark' : 'light');
     }
@@ -107,6 +107,9 @@ export class AppComponent implements OnInit, OnDestroy {
     this.email = this.auth.getEmail();
     this.isLoggedIn = !!this.email && this.auth.isLoggedIn();
     this.displayName = this.computeDisplayName(this.email);
+
+    // ✅ calcule le rôle à chaque changement
+    this.isAdmin = this.auth.isAdmin();
   }
 
   private computeDisplayName(email: string | null): string | null {
@@ -130,8 +133,9 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   isShellRoute(): boolean {
-    const url = this.currentRoute || '';
-    return !(url.startsWith('/login') || url.startsWith('/register') || url.startsWith('/admin'));
+    const clean = (this.currentRoute || '').split('?')[0];
+    const noShellPrefixes = ['/login', '/register', '/forgot-password', '/reset-password'];
+    return !noShellPrefixes.some(p => clean.startsWith(p));
   }
 
   toggleSidebar(): void {

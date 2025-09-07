@@ -4,25 +4,18 @@
     <section class="hero">
       <div class="hero-inner">
         <h2 class="hero-kicker">Démarrer</h2>
-
         <div class="hero-typing">
           <span class="static">Donne-moi des idées de&nbsp;</span>
           <span #typing class="typing"></span>
           <span #cursor class="cursor">•</span>
         </div>
-
-        <p class="hero-sub">
-          pour une petite soirée, un projet d’école, un voyage… ✨
-        </p>
+        <p class="hero-sub">pour une petite soirée, un projet d’école, un voyage… ✨</p>
       </div>
     </section>
 
     <!-- C A R D (droite) -->
     <section class="auth-card">
-      <div class="brand">
-        <span class="material-icons">smart_toy</span>
-      </div>
-
+      <div class="brand"><span class="material-icons">smart_toy</span></div>
       <h1 class="title">Mon Agent Conversationnel</h1>
       <p class="subtitle">Connectez-vous pour continuer</p>
 
@@ -41,6 +34,11 @@
             <span class="material-icons">lock</span>
             <input type="password" [(ngModel)]="password" name="password" placeholder="Votre mot de passe" required />
           </div>
+
+          <!-- ✅ Oublié → va au formulaire de reset (mode local sans token) -->
+          <div class="row-actions">
+            <a routerLink="/reset-password" class="forgot">Mot de passe oublié ?</a>
+          </div>
         </div>
 
         <button class="btn primary" [disabled]="loading">
@@ -49,9 +47,7 @@
         </button>
       </form>
 
-      <p class="alt-action">
-        Pas de compte ? <a routerLink="/register">Créer un compte</a>
-      </p>
+      <p class="alt-action">Pas de compte ? <a routerLink="/register">Créer un compte</a></p>
     </section>
   </div>
 </div>
