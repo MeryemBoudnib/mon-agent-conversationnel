@@ -43,6 +43,9 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 export class AdminDashboardComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
 
+  // ➜ mets false quand l’API renvoie des données
+  private USE_FAKE_LATENCY_WHEN_EMPTY = true;
+
   theme: 'light' | 'dark' = 'light';
   fromISO = '';
   toISO = '';
@@ -65,6 +68,7 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
   signupsFill:   ApexFill   = { type: 'gradient' };
   signupsLabels: ApexDataLabels = { enabled: false };
   signupsLegend: ApexLegend = { position: 'top' };
+  signupsNoData = { text: 'Aucune inscription sur la période' };
 
   /* ===== Latence (fenêtre glissante) ===== */
   latSeries: ApexAxisChartSeries = [];
@@ -75,6 +79,7 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
   latLegend: ApexLegend = { position: 'top' };
   latTooltip: ApexTooltip = { x: { format: 'HH:mm:ss' } };
   latAnnotations: ApexAnnotations = { yaxis: [] };
+  latNoData = { text: 'Aucune donnée de latence' };
   sloP90 = 0.8;
 
   /** Fenêtre large (24h) pour être sûr d’avoir des points même si l’agrégation est à 5–60 min. */
@@ -115,6 +120,7 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
     x: { show: true },
     y: { formatter: (val: number) => `${val ?? 0} msg` }
   };
+  msgsNoData = { text: 'Aucun message sur la période' };
 
   constructor(
     private api: AdminService,
@@ -140,7 +146,7 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
       }
     });
 
-    // Période par défaut : 14 derniers jours (pour les sections non temps réel)
+    // Période par défaut : 14 derniers jours
     const to = new Date();
     const from = new Date(Date.now() - 13 * 86400000);
     this.toISO = to.toISOString().slice(0, 10);
@@ -178,9 +184,7 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
     this.msgsTheme = { ...this.msgsTheme, mode: this.theme === 'dark' ? 'dark' : 'light' };
   }
 
-  /** Nom de jour pour la heatmap (adapter l’ordre selon ton backend) */
   weekDayName(i: number): string {
-    // Si dow=0 → Lundi, garde ceci. Si dow=0→Dimanche, remplace par ['Dim','Lun',...].
     const jours = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
     return jours[i] ?? '';
   }
@@ -215,7 +219,7 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
       this.stats.avgConvMin = avg;
     });
 
-    // Heatmap (unique, ici)
+    // Heatmap
     this.heat = Array.from({ length: 7 }, () => Array(24).fill(0));
     this.maxHeat = 1;
     this.api.heatmap(this.fromISO, this.toISO)
@@ -260,26 +264,44 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
         }),
         takeUntil(this.destroy$)
       )
-      .subscribe(rows => this.updateLatencyChart(rows ?? []));
+      .subscribe(rows => {
+        if ((!rows || rows.length === 0) && this.USE_FAKE_LATENCY_WHEN_EMPTY) {
+          // ➜ données factices pour valider l’UI
+          const now = Date.now();
+          const pts: BotLatencyRow[] = [];
+          for (let i = 12; i >= 0; i--) {
+            const x = now - i * 5 * 60_000; // toutes les 5 min
+            const p50 = 0.25 + Math.random() * 0.15;
+            const p90 = 0.55 + Math.random() * 0.25;
+            const avg = (p50 + p90) / 2;
+            pts.push({ ts: x, p50, p90, avg });
+          }
+          console.warn('[UI] Using FAKE latency data (set USE_FAKE_LATENCY_WHEN_EMPTY=false when API OK)');
+          this.updateLatencyChart(pts);
+          return;
+        }
+        this.updateLatencyChart(rows ?? []);
+      });
   }
 
-  /** Parse robuste: accepte epoch(ms) | "YYYY-MM-DD HH:mm:ss" | ISO, filtre les NaN */
+  /** Parse robuste: accepte epoch(ms|sec) | "YYYY-MM-DD HH:mm:ss" | ISO, filtre les NaN */
   private updateLatencyChart(rows: BotLatencyRow[]): void {
     console.log('[UI] latency rows reçus (n=', rows?.length ?? 0, ')', rows?.slice?.(0, 3) ?? rows);
 
-    // ⬇⬇⬇ PATCH : accepte string OU number
     const toEpoch = (t: string | number): number => {
       if (t === null || t === undefined) return NaN;
-      if (typeof t === 'number') return t; // déjà epoch ms
-      const norm = t.includes('T') ? t : t.replace(' ', 'T'); // "YYYY-MM-DD HH:mm:ss" -> ISO-like
+      if (typeof t === 'number') return t < 1e12 ? Math.round(t * 1000) : t; // sec -> ms
+      const norm = t.includes('T') ? t : t.replace(' ', 'T');
       const n = Date.parse(norm);
-      return Number.isNaN(n) ? NaN : n;
+      if (!Number.isNaN(n)) return n;
+      const nb = Number(t);
+      return Number.isFinite(nb) ? (nb < 1e12 ? Math.round(nb * 1000) : nb) : NaN;
     };
 
     const make = (key: 'p50'|'p90'|'avg') =>
       (rows ?? [])
         .map(r => {
-          const x = toEpoch(r.ts);
+          const x = toEpoch(r.ts as any);
           const y = Number((r as any)[key]);
           return (Number.isNaN(x) || Number.isNaN(y)) ? null : [x, y] as [number, number];
         })
@@ -292,7 +314,7 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
     ];
   }
 
-  private refreshSloAnnotation(): void {
+  refreshSloAnnotation(): void {
     this.latAnnotations = {
       yaxis: [{
         y: this.sloP90,
@@ -378,4 +400,3 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
     this.router.navigateByUrl('/login', { replaceUrl: true });
   }
 }
-

@@ -1,6 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, of, map, switchMap, catchError } from 'rxjs';
+import { Observable, of, map, switchMap, catchError, tap } from 'rxjs';
+
+/* ===================== DTOs / Types ===================== */
 
 export interface UserSignupDTO { date: string; count: number; }
 export interface MsgPerDay { d: string; msgs: number; }
@@ -17,7 +19,6 @@ export interface AdminUser {
   active: boolean;
 }
 
-// ts peut être epoch(ms) OU string ISO, samples optionnel
 export interface BotLatencyRow {
   ts: number | string; p50: number; p90: number; avg: number; samples?: number;
 }
@@ -51,7 +52,8 @@ export interface SummaryResponse {
 
 type AnalyticsMode = 'spring' | 'flask-rest' | 'flask-mcp';
 
-/* ---------- Helpers ---------- */
+/* ===================== Helpers ===================== */
+
 function coerceBool(v: any): boolean {
   if (typeof v === 'boolean') return v;
   if (typeof v === 'number') return v === 1;
@@ -62,6 +64,8 @@ function coerceBool(v: any): boolean {
   }
   return false;
 }
+
+/* ===================== Service ===================== */
 
 @Injectable({ providedIn: 'root' })
 export class AdminService {
@@ -74,10 +78,11 @@ export class AdminService {
   private flaskMcp      = 'http://localhost:5000/mcp/execute';
   private flaskMetrics  = 'http://localhost:5000/metrics';
 
-  // ⚠️ Si tu mets 'flask-mcp' ou 'flask-rest', on n’appellera PAS l’endpoint Spring de latence.
   private ANALYTICS_MODE: AnalyticsMode = 'flask-mcp';
 
   constructor(private http: HttpClient) {}
+
+  /* ------------ format helpers ------------ */
 
   private toIsoDate(input: string | Date): string {
     if (input instanceof Date) return input.toISOString().slice(0, 10);
@@ -89,44 +94,73 @@ export class AdminService {
     return isNaN(d.getTime()) ? s : d.toISOString().slice(0, 10);
   }
 
-  /** yyyy-MM-ddTHH:mm:ss (sans Z) */
-  private toIsoDateTime(input: string | Date): string {
-    if (input instanceof Date) return input.toISOString().slice(0, 19);
-    const d = new Date(input);
-    return isNaN(d.getTime()) ? String(input).slice(0, 19) : d.toISOString().slice(0, 19);
-  }
-
-  /** yyyy-MM-ddTHH:mm:ssZ (UTC) — attendu par Spring @RequestParam Instant */
   private toIsoUtc(input: string | Date): string {
     const d = input instanceof Date ? input : new Date(input);
     return isNaN(d.getTime()) ? String(input) : d.toISOString().slice(0, 19) + 'Z';
   }
 
-  /** Normalise n'importe quel format {tsMillis|ts} en epoch ms + nombres */
+  private unwrapRows(resp: any): any[] {
+    if (Array.isArray(resp)) return resp;
+    if (Array.isArray(resp?.rows)) return resp.rows;
+    if (Array.isArray(resp?.data)) return resp.data;
+    if (Array.isArray(resp?.data?.rows)) return resp.data.rows;
+    if (Array.isArray(resp?.result)) return resp.result;
+    console.warn('[metrics] unexpected payload shape:', resp);
+    return [];
+  }
+
   private normalizeLatencyRows(rows: any[]): BotLatencyRow[] {
     const toEpoch = (t: any): number => {
       if (t == null) return NaN;
-      if (typeof t === 'number') return t; // déjà epoch ms
+      if (typeof t === 'number') return t < 1e12 ? Math.round(t * 1000) : t; // sec→ms
       const s = String(t);
-      const iso = s.includes('T') ? s : s.replace(' ', 'T'); // "YYYY-MM-DD HH:mm:ss" -> ISO-like
+      const iso = s.includes('T') ? s : s.replace(' ', 'T');
       const parsed = Date.parse(iso);
       return Number.isNaN(parsed) ? NaN : parsed;
     };
+    const num = (v: any) => (v == null ? NaN : Number(v));
 
     return (rows ?? []).map(r => {
-      const rawTs = r.tsMillis ?? r.ts ?? r.time ?? r.bucket ?? r.bucketStart ?? null;
+      const rawTs =
+        r.tsMillis ?? r.ts_ms ?? r.tsMs ?? r.ts_epoch ?? r.tsEpoch ??
+        r.ts ?? r.time ?? r.timestamp ?? r.datetime ?? r.date ??
+        r.bucketStart ?? r.bucket ?? r.t ?? null;
+
+      const p50s = !Number.isNaN(num(r.p50_ms)) ? num(r.p50_ms)/1000
+                : !Number.isNaN(num(r.P50_ms))   ? num(r.P50_ms)/1000
+                : !Number.isNaN(num(r.p50))      ? num(r.p50)
+                : !Number.isNaN(num(r.P50))      ? num(r.P50)
+                : !Number.isNaN(num(r.median))   ? num(r.median) : NaN;
+
+      const p90s = !Number.isNaN(num(r.p90_ms)) ? num(r.p90_ms)/1000
+                : !Number.isNaN(num(r.P90_ms))   ? num(r.P90_ms)/1000
+                : !Number.isNaN(num(r.p90))      ? num(r.p90)
+                : !Number.isNaN(num(r.P90))      ? num(r.P90)
+                : !Number.isNaN(num(r.p95_ms))   ? num(r.p95_ms)/1000
+                : !Number.isNaN(num(r.P95_ms))   ? num(r.P95_ms)/1000
+                : !Number.isNaN(num(r.p95))      ? num(r.p95)
+                : !Number.isNaN(num(r.P95))      ? num(r.P95) : NaN;
+
+      const avgs = !Number.isNaN(num(r.avg_ms))     ? num(r.avg_ms)/1000
+                 : !Number.isNaN(num(r.mean_ms))    ? num(r.mean_ms)/1000
+                 : !Number.isNaN(num(r.average_ms)) ? num(r.average_ms)/1000
+                 : !Number.isNaN(num(r.avg))        ? num(r.avg)
+                 : !Number.isNaN(num(r.mean))       ? num(r.mean)
+                 : !Number.isNaN(num(r.average))    ? num(r.average) : NaN;
+
       const ts = toEpoch(rawTs);
       return {
-        ts: ts, // epoch ms pour la série datetime
-        p50: Number(r.p50 ?? r.P50 ?? 0),
-        p90: Number(r.p90 ?? r.P90 ?? 0),
-        avg: Number(r.avg ?? r.mean ?? r.average ?? 0),
-        samples: Number(r.samples ?? r.n ?? r.count ?? 0),
+        ts,
+        p50: Number.isNaN(p50s) ? 0 : p50s,
+        p90: Number.isNaN(p90s) ? 0 : p90s,
+        avg: Number.isNaN(avgs) ? 0 : avgs,
+        samples: Number(r.samples ?? r.n ?? r.count ?? 0)
       } as BotLatencyRow;
     }).filter(r => !Number.isNaN(r.ts as number));
   }
 
-  // ---------- Admin ----------
+  /* --------------------- Admin --------------------- */
+
   getStats(): Observable<any> { return this.http.get(`${this.baseAdmin}/stats`); }
 
   getUsers(): Observable<AdminUser[]> {
@@ -138,9 +172,7 @@ export class AdminService {
         email: String(r.email ?? ''),
         role: (r.role ?? 'USER') as 'USER' | 'ADMIN',
         conversations: Number(r.conversations ?? 0),
-        active: coerceBool(
-          r.active ?? r.isActive ?? r.enabled ?? r.status ?? r.is_enabled ?? r.is_active
-        ),
+        active: coerceBool(r.active ?? r.isActive ?? r.enabled ?? r.status ?? r.is_enabled ?? r.is_active),
       })))
     );
   }
@@ -158,7 +190,8 @@ export class AdminService {
     return this.http.post<void>(`${this.baseAdmin}/users/${id}/role`, null, { params });
   }
 
-  // ---------- Analytics ----------
+  /* ------------------- Analytics ------------------- */
+
   msgsPerDay(from: string, to: string): Observable<MsgPerDay[]> {
     const f = this.toIsoDate(from), t = this.toIsoDate(to);
 
@@ -222,63 +255,79 @@ export class AdminService {
     const params = new HttpParams().set('from', f).set('to', t);
     return this.http.get<UserSignupDTO[]>(`${this.baseAdmin}/signups-per-day`, { params }); }
 
-  // ---------- Monitoring latence ----------
-  // Si mode Flask ⇒ on ne touche pas Spring (évite 403). Spring seulement si ANALYTICS_MODE === 'spring'.
+  /* --------------- Monitoring latence --------------- */
+
   latencyWindow(from: string | Date, to: string | Date): Observable<BotLatencyRow[]> {
     const useSpring = this.ANALYTICS_MODE === 'spring';
 
-    // --------- FLASK (par défaut) ----------
-    const isoZ = (d: string | Date) =>
-      d instanceof Date ? d.toISOString().replace(/\.\d{3}Z$/, 'Z')
-                        : (String(d).endsWith('Z') ? String(d) : String(d) + 'Z');
-    const isoLocal = (d: string | Date) => {
-      const s = d instanceof Date ? d.toISOString().slice(0,19) : String(d).slice(0,19);
-      return s.replace('T', ' ');
-    };
+    const asDate = (d: string | Date) => (d instanceof Date ? d : new Date(d));
+    const fromD = asDate(from);
+    const toD   = asDate(to);
+
+    const fromIsoZ = fromD.toISOString().replace(/\.\d{3}Z$/, 'Z');
+    const toIsoZ   = toD.toISOString().replace(/\.\d{3}Z$/, 'Z');
+
+    const toLocalNoZ = (d: Date) => d.toISOString().slice(0,19).replace('T', ' ');
+    const fromLocal  = toLocalNoZ(fromD);
+    const toLocal    = toLocalNoZ(toD);
+
+    const fromMs = fromD.getTime();
+    const toMs   = toD.getTime();
+    const fromSec = Math.floor(fromMs / 1000);
+    const toSec   = Math.floor(toMs   / 1000);
+
     const url = `${this.flaskMetrics}/latency-window`;
-    const mkParams = (pairs: Record<string, string>) => {
+    const mkParams = (pairs: Record<string, string | number>) => {
       let p = new HttpParams();
-      for (const k of Object.keys(pairs)) p = p.set(k, pairs[k]);
+      for (const k of Object.keys(pairs)) {
+        const v = pairs[k];
+        if (v !== undefined && v !== null && v !== '') p = p.set(k, String(v));
+      }
       return p.set('_', String(Date.now()));
     };
+
     const attempts: Array<{label: string; params: HttpParams}> = [
-      { label: 'from/to UTC Z',        params: mkParams({ from: isoZ(from),     to: isoZ(to) }) },
-      { label: 'from/to local noZ',    params: mkParams({ from: isoLocal(from), to: isoLocal(to) }) },
-      { label: 'start/end UTC Z',      params: mkParams({ start: isoZ(from),    end: isoZ(to) }) },
-      { label: 'window_minutes=1440',  params: mkParams({ window_minutes: '1440' }) },
+      { label: 'from/to ISO Z + bucket_min',   params: mkParams({ from: fromIsoZ, to: toIsoZ, bucket_min: 5 }) },
+      { label: 'start/end ISO Z + bucket_min', params: mkParams({ start: fromIsoZ, end: toIsoZ, bucket_min: 5 }) },
+      { label: 'from/to local + bucket_min',   params: mkParams({ from: fromLocal, to: toLocal, bucket_min: 5 }) },
+      { label: 'since/until + bucket_min',     params: mkParams({ since: fromIsoZ, until: toIsoZ, bucket_min: 5 }) },
+      { label: 'from/to + bucketMin',          params: mkParams({ from: fromIsoZ, to: toIsoZ, bucketMin: 5 }) },
+      { label: 'lookback_minutes=1440',        params: mkParams({ lookback_minutes: 1440 }) },
+      { label: 'window_minutes=1440',          params: mkParams({ window_minutes: 1440 }) },
+      { label: 'from_ms/to_ms',                params: mkParams({ from_ms: fromMs, to_ms: toMs, bucket_min: 5 }) },
+      { label: 'from_epoch_ms/to_epoch_ms',    params: mkParams({ from_epoch_ms: fromMs, to_epoch_ms: toMs, bucket_min: 5 }) },
+      { label: 'from_epoch/to_epoch (sec)',    params: mkParams({ from_epoch: fromSec, to_epoch: toSec, bucket_min: 5 }) },
     ];
+
     const tryFlaskOne = (i: number): Observable<BotLatencyRow[]> => {
       if (i >= attempts.length) return of<BotLatencyRow[]>([]);
       const { label, params } = attempts[i];
-      return this.http.get<any[]>(url, { params }).pipe(
-        map(rows => this.normalizeLatencyRows(rows ?? [])),
+      return this.http.get<any>(url, { params }).pipe(
+        tap(resp => console.debug('[metrics] raw', label, resp)),
+        map(resp => this.normalizeLatencyRows(this.unwrapRows(resp))),
         switchMap(rows => rows.length > 0 ? of(rows) : tryFlaskOne(i + 1)),
         catchError(_ => tryFlaskOne(i + 1))
       );
     };
 
-    if (!useSpring) {
-      return tryFlaskOne(0);
-    }
+    if (!useSpring) return tryFlaskOne(0);
 
-    // --------- SPRING (optionnel) ----------
-    const fromUtc = this.toIsoUtc(from);
-    const toUtc   = this.toIsoUtc(to);
     const springParams = new HttpParams()
-      .set('from', fromUtc)
-      .set('to', toUtc)
-      .set('_', String(Date.now())); // anti-cache
+      .set('from', this.toIsoUtc(from))
+      .set('to',   this.toIsoUtc(to))
+      .set('_',    String(Date.now()));
 
     return this.http
-      .get<any[]>(`${this.baseAdmin}/latency-window`, { params: springParams })
+      .get<any>(`${this.baseAdmin}/latency-window`, { params: springParams })
       .pipe(
-        map(rows => this.normalizeLatencyRows(rows ?? [])),
+        map(resp => this.normalizeLatencyRows(this.unwrapRows(resp))),
         catchError(_ => of<BotLatencyRow[]>([])),
         switchMap(rows => rows.length > 0 ? of(rows) : tryFlaskOne(0))
       );
   }
 
-  // ---------- IA ----------
+  /* --------------------- IA --------------------- */
+
   metricsSummary(fromIso: string, toIso: string, slo_p90 = 0.8): Observable<SummaryResponse> {
     const params = new HttpParams()
       .set('from', `${fromIso}T00:00:00`)

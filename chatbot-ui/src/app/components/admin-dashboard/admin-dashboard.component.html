@@ -1,9 +1,7 @@
 <div class="dashboard" [ngClass]="theme">
-  <!-- Header -->
   <div class="header">
     <h2>Admin Dashboard</h2>
 
-    <!-- MENU PROFIL -->
     <button mat-button class="profile-btn" [matMenuTriggerFor]="adminMenu" aria-label="Menu administrateur">
       <span class="avatar">{{ initials }}</span>
       <mat-icon>expand_more</mat-icon>
@@ -22,13 +20,6 @@
         <span>Utilisateurs</span>
       </button>
 
-      <!-- Exemple d’item futur :
-      <button mat-menu-item [routerLink]="['/admin/settings']">
-        <mat-icon>settings</mat-icon>
-        <span>Paramètres</span>
-      </button>
-      -->
-
       <mat-divider></mat-divider>
 
       <button mat-menu-item (click)="logout()">
@@ -38,45 +29,31 @@
     </mat-menu>
   </div>
 
-  <!-- KPIs -->
   <div class="kpis">
     <mat-card class="kpi">
-      <div class="kpi-head">
-        <span class="dot"></span>
-        <span class="kpi-title">Utilisateurs</span>
-      </div>
+      <div class="kpi-head"><span class="dot"></span><span class="kpi-title">Utilisateurs</span></div>
       <div class="kpi-value">{{ stats.users }}</div>
     </mat-card>
 
     <mat-card class="kpi">
-      <div class="kpi-head">
-        <span class="dot"></span>
-        <span class="kpi-title">Conversations actives</span>
-      </div>
+      <div class="kpi-head"><span class="dot"></span><span class="kpi-title">Conversations actives</span></div>
       <div class="kpi-value">{{ stats.activeConversations }}</div>
     </mat-card>
 
     <mat-card class="kpi">
-      <div class="kpi-head">
-        <span class="dot"></span>
-        <span class="kpi-title">Durée moy. conv (min)</span>
-      </div>
+      <div class="kpi-head"><span class="dot"></span><span class="kpi-title">Durée moy. conv (min)</span></div>
       <div class="kpi-value">{{ stats.avgConvMin | number:'1.0-1' }}</div>
     </mat-card>
   </div>
 
-  <!-- Période -->
   <mat-card class="range-card">
     <div class="range-row">
       <label>Du : <input type="date" [(ngModel)]="fromISO" /></label>
       <label>Au : <input type="date" [(ngModel)]="toISO" /></label>
-      <button mat-raised-button color="primary" class="btn-apply" (click)="applyRange()">
-        Appliquer
-      </button>
+      <button mat-raised-button color="primary" class="btn-apply" (click)="applyRange()">Appliquer</button>
     </div>
   </mat-card>
 
-  <!-- Inscriptions -->
   <mat-card class="section">
     <div class="section-title">Inscriptions par jour</div>
     <apx-chart
@@ -87,16 +64,16 @@
       [fill]="signupsFill"
       [dataLabels]="signupsLabels"
       [legend]="signupsLegend"
+      [noData]="signupsNoData"
     ></apx-chart>
   </mat-card>
 
-  <!-- Latence + Synthèse / Nowcast -->
   <mat-card class="section">
     <div class="section-title row">
       <span>Latence du bot (p50/p90/moyenne, s)</span>
       <div class="tools">
         <span class="slo">SLO P90 (s) :
-          <input type="number" step="0.1" [(ngModel)]="sloP90">
+          <input type="number" step="0.1" [(ngModel)]="sloP90" (ngModelChange)="refreshSloAnnotation()">
         </span>
         <button mat-stroked-button color="primary" (click)="runSummary()">Synthèse SRE</button>
         <button mat-stroked-button color="accent"  (click)="runForecast()">Nowcast 1h</button>
@@ -110,16 +87,16 @@
       [stroke]="latStroke"
       [dataLabels]="latLabels"
       [legend]="latLegend"
+      [tooltip]="latTooltip"
+      [annotations]="latAnnotations"
+      [noData]="latNoData"
     ></apx-chart>
 
-    <!-- Synthèse SRE -->
     <div class="ai-brief" *ngIf="iaSummary?.summary_text">
       <div class="brief-head">
         <div>
           <div class="title">Synthèse SRE</div>
-          <div class="subtitle">
-            Fenêtre: {{ fromISO }} → {{ toISO }} • Indicateur clé: Latence P90
-          </div>
+          <div class="subtitle">Fenêtre: {{ fromISO }} → {{ toISO }} • Indicateur clé: Latence P90</div>
         </div>
         <div class="meta">
           <span class="pill">SLO cible: P90 ≤ {{ sloP90 }}s</span>
@@ -133,7 +110,6 @@
       </div>
     </div>
 
-    <!-- Nowcast -->
     <div class="ia-forecast" *ngIf="iaForecast?.points?.length">
       <h4>Nowcast (prochaine heure) — SLO p90={{ iaForecast?.slo_p90 }}</h4>
       <div class="risk-badge" [class.alert]="iaForecast?.alert">
@@ -143,9 +119,7 @@
       <div class="table-wrap">
         <table class="table">
           <thead>
-            <tr>
-              <th>Heure</th><th>P90 prédit</th><th>IC bas–haut</th><th>Risque</th>
-            </tr>
+            <tr><th>Heure</th><th>P90 prédit</th><th>IC bas–haut</th><th>Risque</th></tr>
           </thead>
           <tbody>
             <tr *ngFor="let p of iaForecast!.points">
@@ -160,7 +134,6 @@
     </div>
   </mat-card>
 
-  <!-- Messages (ApexCharts) -->
   <mat-card class="section">
     <div class="section-title">Messages par jour</div>
     <apx-chart
@@ -175,9 +148,10 @@
       [grid]="msgsGrid"
       [theme]="msgsTheme"
       [tooltip]="msgsTooltip"
+      [noData]="msgsNoData"
     ></apx-chart>
   </mat-card>
-  <!-- Heatmap -->
+
   <mat-card class="section">
     <div class="section-title">Heatmap (jours x heures)</div>
     <div class="heatmap">
@@ -189,6 +163,4 @@
       </div>
     </div>
   </mat-card>
-  <!-- NOTE: la grosse table Users a été déplacée sur /admin/users -->
-  <!-- Tu peux garder ici un petit aperçu + bouton "Voir tout" si tu veux -->
 </div>
