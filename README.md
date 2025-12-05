@@ -51,10 +51,9 @@ Le système est conçu pour découpler l'interface utilisateur des moteurs d'IA 
 ### Interface de Chat (RAG & Sources)
 *L'agent est capable d'analyser un PDF et de citer ses sources.*
 <img width="1056" height="493" alt="image" src="https://github.com/user-attachments/assets/40966c3a-b1c2-4ec1-aaa0-72515695f479" />
-<img width="487" height="481" alt="image" src="https://github.com/user-attachments/assets/cea6892d-d6f2-4f9b-a1fc-365f55ad0c5f" />
 <img width="1055" height="501" alt="image" src="https://github.com/user-attachments/assets/7e3cb35e-817b-4c2c-8c18-e14ec2a9343f" />
 <img width="1067" height="288" alt="image" src="https://github.com/user-attachments/assets/b02ae505-8f64-485d-a912-6262f899cf4f" />
-
+<img width="487" height="481" alt="image" src="https://github.com/user-attachments/assets/cea6892d-d6f2-4f9b-a1fc-365f55ad0c5f" />
 
 
 ### Dashboard Administrateur
@@ -75,8 +74,9 @@ Le système est conçu pour découpler l'interface utilisateur des moteurs d'IA 
 *   Node.js 18+
 *   Java 21 (JDK)
 *   Python 3.10+
-### 
-### 1. Backend (Spring Boot)
+
+ 1. Backend (Spring Boot)
+```bash
 cd backend
 ./mvnw spring-boot:run
 
